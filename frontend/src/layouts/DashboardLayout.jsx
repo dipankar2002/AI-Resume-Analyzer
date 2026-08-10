@@ -1,5 +1,7 @@
 import { Box } from "@mui/material";
 
+import Navbar from "../components/Navbar";
+
 function DashboardLayout({ children }) {
   return (
     <Box
@@ -9,7 +11,16 @@ function DashboardLayout({ children }) {
         backgroundColor: "background.default",
       }}
     >
-      {children}
+      <Navbar />
+
+      <Box
+        component="main"
+        sx={{
+          width: "100%",
+        }}
+      >
+        {children}
+      </Box>
     </Box>
   );
 }

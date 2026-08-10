@@ -4,14 +4,24 @@ import { SignIn, SignUp } from "@clerk/react";
 import Home from "../pages/Home";
 import AuthLayout from "../layouts/AuthLayout";
 import DashboardLayout from "../layouts/DashboardLayout";
+
 import Dashboard from "../pages/dashboard/Dashboard";
+import UploadResume from "../pages/dashboard/UploadResume";
+import ResumeAnalysis from "../pages/analysis/ResumeAnalysis";
+import MyResumes from "../pages/resumes/MyResumes";
+import JobMatches from "../pages/jobs/JobMatches";
+import JobRecommendations from "../pages/recommendations/JobRecommendations";
+
 import ProtectedRoute from "./ProtectedRoute";
 
 function AppRoutes() {
   return (
     <Routes>
       {/* Home */}
-      <Route path="/" element={<Home />} />
+      <Route
+        path="/"
+        element={<Home />}
+      />
 
       {/* Login */}
       <Route
@@ -48,6 +58,66 @@ function AppRoutes() {
           <ProtectedRoute>
             <DashboardLayout>
               <Dashboard />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Upload Resume */}
+      <Route
+        path="/dashboard/upload"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <UploadResume />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* My Resumes */}
+      <Route
+        path="/resumes"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <MyResumes />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Resume Analysis */}
+      <Route
+        path="/analysis"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <ResumeAnalysis />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Job Matches */}
+      <Route
+        path="/jobs"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <JobMatches />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Job Recommendations */}
+      <Route
+        path="/recommendations"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <JobRecommendations />
             </DashboardLayout>
           </ProtectedRoute>
         }

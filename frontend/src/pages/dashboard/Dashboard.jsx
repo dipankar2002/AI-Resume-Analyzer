@@ -1,52 +1,37 @@
-import { Box, Typography, Paper } from "@mui/material";
-import { UserButton } from "@clerk/react";
+import { Box } from "@mui/material";
+
+import DashboardHeader from "../../components/dashboard/DashboardHeader";
+import DashboardStats from "../../components/dashboard/DashboardStats";
+import UploadResumeCard from "../../components/dashboard/UploadResumeCard";
+import RecentResumes from "../../components/dashboard/RecentResumes";
 
 function Dashboard() {
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        p: { xs: 2, sm: 3, md: 4 },
+        backgroundColor: "background.default",
+        p: {
+          xs: 2,
+          sm: 3,
+          md: 4,
+        },
       }}
     >
       <Box
         sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 4,
+          maxWidth: "1200px",
+          mx: "auto",
         }}
       >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Dashboard
-          </Typography>
+        <DashboardHeader />
 
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Welcome to your AI Resume Analyzer dashboard.
-          </Typography>
-        </Box>
+        <DashboardStats />
 
-        <UserButton />
+        <UploadResumeCard />
+
+        <RecentResumes />
       </Box>
-
-      <Paper
-        elevation={0}
-        sx={{
-          p: 4,
-          borderRadius: 3,
-          border: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-          Welcome 👋
-        </Typography>
-
-        <Typography color="text.secondary">
-          Your resume analysis tools will appear here.
-        </Typography>
-      </Paper>
     </Box>
   );
 }
