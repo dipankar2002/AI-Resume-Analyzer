@@ -8,11 +8,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resumeanalyzer.entity.Resume;
 import com.resumeanalyzer.repo.ResumeRepository;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
-import com.resumeanalyzer.service.ResumeAnalysisResponse;
 
 @Service
 public class GeminiService {
@@ -25,9 +25,13 @@ public class GeminiService {
 
     public GeminiService(
             ResumeRepository resumeRepository,
-            ResumeSkillService resumeSkillService) {
+            ResumeSkillService resumeSkillService,
+            @Value("${GEMINI_API_KEY}") String geminiApiKey) {
 
-        this.client = new Client();
+        this.client = Client.builder()
+                .apiKey(geminiApiKey)
+                .build();
+
         this.resumeRepository = resumeRepository;
         this.resumeSkillService = resumeSkillService;
     }
