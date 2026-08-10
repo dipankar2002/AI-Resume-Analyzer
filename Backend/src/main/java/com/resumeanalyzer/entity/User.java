@@ -28,6 +28,10 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @ManyToOne
+    @JoinColumn(name = "active_resume_id")
+    private Resume activeResume;
+
     public enum Role {
         STUDENT,
         ADMIN
@@ -38,6 +42,7 @@ public class User {
 
     @PrePersist
     protected void onCreate() {
+
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
@@ -46,8 +51,6 @@ public class User {
             role = Role.STUDENT;
         }
     }
-
-    // Getters and Setters
 
     public Integer getUserId() {
         return userId;
@@ -95,5 +98,13 @@ public class User {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Resume getActiveResume() {
+        return activeResume;
+    }
+
+    public void setActiveResume(Resume activeResume) {
+        this.activeResume = activeResume;
     }
 }
