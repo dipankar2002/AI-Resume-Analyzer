@@ -1,7 +1,12 @@
 package com.resumeanalyzer.controller;
 
 import com.resumeanalyzer.dto.JobRecommendationResponse;
+import com.resumeanalyzer.entity.User;
 import com.resumeanalyzer.service.RecommendationService;
+import com.resumeanalyzer.service.UserService;
+
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -11,17 +16,27 @@ import java.util.List;
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
+    private final UserService userService;
 
     public RecommendationController(
-            RecommendationService recommendationService) {
+            RecommendationService recommendationService,
+            UserService userService) {
 
         this.recommendationService = recommendationService;
+        this.userService = userService;
     }
 
-    @GetMapping("/user/{userId}")
+    @GetMapping("/me")
     public List<JobRecommendationResponse> getRecommendations(
-            @PathVariable Integer userId) {
+            @AuthenticationPrincipal Jwt jwt) {
 
-        return recommendationService.getRecommendations(userId);
+        String clerkUserId = jwt.getSubject();
+
+        User user =
+                userService.getOrCreateUser(clerkUserId);
+
+        return recommendationService.getRecommendations(
+                user.getUserId()
+        );
     }
 }
