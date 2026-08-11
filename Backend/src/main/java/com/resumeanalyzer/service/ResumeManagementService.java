@@ -1,12 +1,13 @@
 package com.resumeanalyzer.service;
 
 import com.resumeanalyzer.dto.ResumeListResponse;
-
+import com.resumeanalyzer.entity.Resume;
 import com.resumeanalyzer.entity.User;
 import com.resumeanalyzer.repo.ResumeRepository;
 import com.resumeanalyzer.repo.UserRepository;
+
 import org.springframework.stereotype.Service;
-import com.resumeanalyzer.entity.Resume;
+
 import java.util.List;
 
 @Service
@@ -22,15 +23,18 @@ public class ResumeManagementService {
         this.resumeRepository = resumeRepository;
         this.userRepository = userRepository;
     }
+
     public Resume getResume(Integer resumeId) {
 
         return resumeRepository.findById(resumeId)
                 .orElseThrow(() ->
                         new RuntimeException("Resume not found"));
     }
-    public List<ResumeListResponse> getUserResumes(Integer userId) {
 
-        User user = userRepository.findById(userId)
+    public List<ResumeListResponse> getUserResumes(
+            String clerkUserId) {
+
+        User user = userRepository.findByClerkUserId(clerkUserId)
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
 
@@ -43,6 +47,7 @@ public class ResumeManagementService {
                 ))
                 .toList();
     }
+
     public void deleteResume(Integer resumeId) {
 
         Resume resume = resumeRepository.findById(resumeId)
@@ -51,9 +56,12 @@ public class ResumeManagementService {
 
         resumeRepository.delete(resume);
     }
-    public void setActiveResume(Integer userId, Integer resumeId) {
 
-        User user = userRepository.findById(userId)
+    public void setActiveResume(
+            String clerkUserId,
+            Integer resumeId) {
+
+        User user = userRepository.findByClerkUserId(clerkUserId)
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
 
@@ -61,7 +69,9 @@ public class ResumeManagementService {
                 .orElseThrow(() ->
                         new RuntimeException("Resume not found"));
 
-        if (!resume.getUser().getUserId().equals(userId)) {
+        if (!resume.getUser().getUserId()
+                .equals(user.getUserId())) {
+
             throw new RuntimeException(
                     "Resume does not belong to this user"
             );

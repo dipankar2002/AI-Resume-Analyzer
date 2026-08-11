@@ -20,16 +20,21 @@ public class ResumeService {
     private final ResumeRepository resumeRepository;
     private final UserRepository userRepository;
 
-    public ResumeService(ResumeRepository resumeRepository,
-                         UserRepository userRepository) {
+    public ResumeService(
+            ResumeRepository resumeRepository,
+            UserRepository userRepository) {
+
         this.resumeRepository = resumeRepository;
         this.userRepository = userRepository;
     }
 
-    public Resume uploadResume(MultipartFile file, Integer userId) throws IOException {
+    public Resume uploadResume(
+            MultipartFile file,
+            String clerkUserId) throws IOException {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByClerkUserId(clerkUserId)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
 
         String extractedText = extractText(file);
 
@@ -46,7 +51,8 @@ public class ResumeService {
     public String extractText(MultipartFile file) throws IOException {
 
         try (InputStream inputStream = file.getInputStream();
-             PDDocument document = Loader.loadPDF(inputStream.readAllBytes())) {
+             PDDocument document =
+                     Loader.loadPDF(inputStream.readAllBytes())) {
 
             PDFTextStripper stripper = new PDFTextStripper();
 

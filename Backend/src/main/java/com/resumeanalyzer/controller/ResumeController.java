@@ -3,6 +3,8 @@ package com.resumeanalyzer.controller;
 import java.io.IOException;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,9 +25,12 @@ public class ResumeController {
     @PostMapping("/upload")
     public ResponseEntity<Resume> uploadResume(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("userId") Integer userId) throws IOException {
+            @AuthenticationPrincipal Jwt jwt) throws IOException {
 
-        Resume resume = resumeService.uploadResume(file, userId);
+        String clerkUserId = jwt.getSubject();
+
+        Resume resume =
+                resumeService.uploadResume(file, clerkUserId);
 
         return ResponseEntity.ok(resume);
     }
