@@ -12,13 +12,16 @@ public class User {
     @Column(name = "user_id")
     private Integer userId;
 
+    @Column(name = "clerk_user_id", nullable = false, unique = true, length = 100)
+    private String clerkUserId;
+
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
     @Column(name = "email", nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(name = "password", nullable = false, length = 255)
+    @Column(name = "password", length = 255)
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -58,6 +61,14 @@ public class User {
 
     public void setUserId(Integer userId) {
         this.userId = userId;
+    }
+
+    public String getClerkUserId() {
+        return clerkUserId;
+    }
+
+    public void setClerkUserId(String clerkUserId) {
+        this.clerkUserId = clerkUserId;
     }
 
     public String getName() {

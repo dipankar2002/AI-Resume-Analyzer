@@ -1,4 +1,5 @@
 package com.resumeanalyzer.service;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
@@ -9,29 +10,43 @@ import com.resumeanalyzer.repo.UserRepository;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final ClerkService clerkService;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(
+            UserRepository userRepository,
+            ClerkService clerkService) {
+
         this.userRepository = userRepository;
+        this.clerkService = clerkService;
     }
 
-    public User register(User user) {
+    public User getOrCreateUser(String clerkUserId) {
 
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email already registered");
-        }
+        return userRepository.findByClerkUserId(clerkUserId)
+                .orElseGet(() -> {
 
-        return userRepository.save(user);
+                    Map<String, Object> clerkUser = clerkService.getUser(clerkUserId);
+
+                    User user = new User();
+
+                    user.setClerkUserId(clerkUserId);
+                    user.setEmail(extractEmail(clerkUser));
+                    user.setName((String) clerkUser.get("first_name"));
+                    user.setRole(User.Role.STUDENT);
+
+                    return userRepository.save(user);
+                });
     }
 
-    public User login(String email, String password) {
+    private String extractEmail(Map<String, Object> clerkUser) {
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        var emails = (java.util.List<Map<String, Object>>)
+                clerkUser.get("email_addresses");
 
-        if (!user.getPassword().equals(password)) {
-            throw new RuntimeException("Invalid password");
+        if (emails == null || emails.isEmpty()) {
+            throw new RuntimeException("Clerk user has no email");
         }
 
-        return user;
+        return (String) emails.get(0).get("email_address");
     }
 }
