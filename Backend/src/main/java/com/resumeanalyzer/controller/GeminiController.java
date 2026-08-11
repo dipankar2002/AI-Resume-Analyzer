@@ -27,5 +27,10 @@ public class GeminiController {
         return geminiService.extractSkills(resumeText);
     }
 
+    @PostMapping("/analyze/{resumeId}")
+    public List<GeminiService.ExtractedSkill> analyzeResume(
+            @PathVariable Integer resumeId) {
 
+        return geminiService.analyzeResume(resumeId);
+    }
 }

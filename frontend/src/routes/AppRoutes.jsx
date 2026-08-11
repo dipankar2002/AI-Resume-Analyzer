@@ -89,14 +89,8 @@ function AppRoutes() {
 
       {/* Resume Analysis */}
       <Route
-        path="/analysis"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <ResumeAnalysis />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
+        path="/analysis/:resumeId"
+        element={<ResumeAnalysis />}
       />
 
       {/* Job Matches */}

@@ -1,314 +1,428 @@
+import { useEffect, useState } from "react";
+
 import {
-    Box,
-    Button,
-    Card,
-    CardContent,
-    Chip,
-    Divider,
-    LinearProgress,
-    Typography,
-  } from "@mui/material";
-  
-  import { useNavigate } from "react-router-dom";
-  
-  function ResumeAnalysis() {
-    const navigate = useNavigate();
-  
-    const analysis = {
-      overallScore: 82,
-      atsScore: 78,
-      skillsScore: 90,
-      experienceScore: 85,
-  
-      skills: [
-        "Java",
-        "Spring Boot",
-        "React",
-        "JavaScript",
-        "MySQL",
-        "Git",
-        "REST APIs",
-        "HTML",
-        "CSS",
-      ],
-  
-      strengths: [
-        "Strong technical skill set",
-        "Good project experience",
-        "Solid understanding of modern web technologies",
-        "Good combination of frontend and backend skills",
-      ],
-  
-      improvements: [
-        "Add measurable achievements to your experience",
-        "Improve the resume summary",
-        "Include more keywords related to your target roles",
-        "Add specific results and impact from your projects",
-      ],
-  
-      recommendations: [
-        "Use stronger action verbs when describing your experience.",
-        "Add numbers and measurable results wherever possible.",
-        "Tailor your resume for each job description.",
-        "Keep your resume concise and focused on relevant experience.",
-      ],
-    };
-  
-    const getScoreColor = (score) => {
-      if (score >= 80) {
-        return "success.main";
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  LinearProgress,
+  Typography,
+} from "@mui/material";
+
+import { useAuth } from "@clerk/react";
+import { useNavigate, useParams } from "react-router-dom";
+
+function ResumeAnalysis() {
+  const navigate = useNavigate();
+  const { resumeId } = useParams();
+  const { getToken } = useAuth();
+
+  const [analysis, setAnalysis] = useState(null);
+  const [skills, setSkills] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    loadAnalysis();
+  }, [resumeId]);
+
+  const loadAnalysis = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const token = await getToken();
+
+      const response = await fetch(
+        `http://localhost:8080/api/resume-analysis/${resumeId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to analyze resume.");
       }
-  
-      if (score >= 60) {
-        return "warning.main";
+
+      const data = await response.json();
+
+      setAnalysis(data);
+
+      await loadSkills(token);
+    } catch (err) {
+      setError(err.message || "Failed to analyze resume.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSkills = async (token) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/ai/analyze/${resumeId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        return;
       }
-  
-      return "error.main";
-    };
-  
+
+      const data = await response.json();
+
+      setSkills(data || []);
+    } catch {
+      // Skills are optional for displaying the ATS analysis.
+    }
+  };
+
+  const analyzeAgain = async () => {
+    try {
+      setAnalyzing(true);
+      setError("");
+
+      const token = await getToken();
+
+      const response = await fetch(
+        `http://localhost:8080/api/resume-analysis/${resumeId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to analyze resume.");
+      }
+
+      const data = await response.json();
+
+      setAnalysis(data);
+
+      await loadSkills(token);
+    } catch (err) {
+      setError(err.message || "Failed to analyze resume.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return "success.main";
+    if (score >= 60) return "warning.main";
+    return "error.main";
+  };
+
+  const getScoreLabel = (score) => {
+    if (score >= 80) return "Excellent resume";
+    if (score >= 60) return "Good resume";
+    return "Needs improvement";
+  };
+
+  const splitLines = (text) => {
+    if (!text) return [];
+
+    return text
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  if (loading) {
     return (
       <Box
         sx={{
           minHeight: "100vh",
-          backgroundColor: "background.default",
-          px: { xs: 2, sm: 3, md: 5 },
-          py: { xs: 3, md: 5 },
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        <Box
+        <Box sx={{ textAlign: "center" }}>
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }}>
+            AI is analyzing your resume...
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (error && !analysis) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          px: 3,
+          py: 5,
+          maxWidth: "900px",
+          mx: "auto",
+        }}
+      >
+        <Button
+          onClick={() => navigate("/resumes")}
+          sx={{ mb: 3 }}
+        >
+          ← Back to My Resumes
+        </Button>
+
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
+  if (!analysis) {
+    return null;
+  }
+
+  const atsScore = Number(analysis.atsScore || 0);
+  const strengths = splitLines(analysis.strengths);
+  const weaknesses = splitLines(analysis.weaknesses);
+  const suggestions = splitLines(analysis.suggestions);
+
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: "background.default",
+        px: { xs: 2, sm: 3, md: 5 },
+        py: { xs: 3, md: 5 },
+      }}
+    >
+      <Box
+        sx={{
+          maxWidth: "1200px",
+          mx: "auto",
+        }}
+      >
+        <Button
+          onClick={() => navigate("/resumes")}
           sx={{
-            maxWidth: "1200px",
-            mx: "auto",
+            mb: 3,
+            color: "text.secondary",
+            fontWeight: 600,
+            textTransform: "none",
           }}
         >
-          {/* Back button */}
-          <Button
-            onClick={() => navigate("/dashboard")}
+          ← Back to My Resumes
+        </Button>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Header */}
+        <Box sx={{ mb: 4 }}>
+          <Typography
+            variant="h4"
             sx={{
-              mb: 3,
-              color: "text.secondary",
-              fontWeight: 600,
-              textTransform: "none",
+              fontWeight: 700,
+              mb: 1,
             }}
           >
-            ← Back to Dashboard
-          </Button>
-  
-          {/* Header */}
-          <Box sx={{ mb: 4 }}>
+            Resume Analysis
+          </Typography>
+
+          <Typography color="text.secondary">
+            AI-powered insights generated from your uploaded resume.
+          </Typography>
+        </Box>
+
+        {/* Summary */}
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+            mb: 3,
+          }}
+        >
+          <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
             <Typography
-              variant="h4"
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                mb: 2,
+              }}
+            >
+              Professional Summary
+            </Typography>
+
+            <Typography color="text.secondary">
+              {analysis.professionalSummary ||
+                "No professional summary was generated."}
+            </Typography>
+          </CardContent>
+        </Card>
+
+        {/* ATS Score */}
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+            mb: 3,
+          }}
+        >
+          <CardContent
+            sx={{
+              p: { xs: 3, md: 4 },
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: {
+                  xs: "column",
+                  md: "row",
+                },
+                alignItems: {
+                  xs: "flex-start",
+                  md: "center",
+                },
+                gap: 4,
+              }}
+            >
+              <Box
+                sx={{
+                  minWidth: { md: 190 },
+                  textAlign: {
+                    xs: "left",
+                    md: "center",
+                  },
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    mb: 1,
+                    fontWeight: 600,
+                  }}
+                >
+                  ATS Score
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: {
+                      xs: "3.5rem",
+                      md: "4.5rem",
+                    },
+                    lineHeight: 1,
+                    fontWeight: 800,
+                    color: getScoreColor(atsScore),
+                  }}
+                >
+                  {atsScore}%
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  {getScoreLabel(atsScore)}
+                </Typography>
+              </Box>
+
+              <Divider
+                orientation="vertical"
+                flexItem
+                sx={{
+                  display: {
+                    xs: "none",
+                    md: "block",
+                  },
+                }}
+              />
+
+              <Box sx={{ flexGrow: 1, width: "100%" }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 700,
+                    mb: 2,
+                  }}
+                >
+                  ATS Compatibility
+                </Typography>
+
+                <LinearProgress
+                  variant="determinate"
+                  value={atsScore}
+                  sx={{
+                    height: 10,
+                    borderRadius: 5,
+                  }}
+                />
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  Based on skills, experience, education, structure,
+                  clarity, and relevant keywords.
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* Skills */}
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+            mb: 3,
+          }}
+        >
+          <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+            <Typography
+              variant="h6"
               sx={{
                 fontWeight: 700,
                 mb: 1,
               }}
             >
-              Resume Analysis
+              Skills Detected
             </Typography>
-  
-            <Typography color="text.secondary">
-              AI-powered insights from your uploaded resume.
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 3 }}
+            >
+              Technical and professional skills identified by AI.
             </Typography>
-          </Box>
-  
-          {/* Resume information */}
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 3,
-              border: "1px solid",
-              borderColor: "divider",
-              mb: 3,
-            }}
-          >
-            <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 2,
-                  flexWrap: "wrap",
-                }}
-              >
-                <Box>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 700,
-                      mb: 0.5,
-                    }}
-                  >
-                    Software_Engineer_Resume.pdf
-                  </Typography>
-  
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                  >
-                    Analysis completed
-                  </Typography>
-                </Box>
-  
-                <Chip
-                  label="Analyzed"
-                  color="success"
-                  variant="outlined"
-                />
-              </Box>
-            </CardContent>
-          </Card>
-  
-          {/* Overall score */}
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 3,
-              border: "1px solid",
-              borderColor: "divider",
-              mb: 3,
-            }}
-          >
-            <CardContent
-              sx={{
-                p: { xs: 3, md: 4 },
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: {
-                    xs: "column",
-                    md: "row",
-                  },
-                  alignItems: {
-                    xs: "flex-start",
-                    md: "center",
-                  },
-                  gap: 4,
-                }}
-              >
-                {/* Score */}
-                <Box
-                  sx={{
-                    minWidth: { md: 180 },
-                    textAlign: {
-                      xs: "left",
-                      md: "center",
-                    },
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      mb: 1,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Overall Score
-                  </Typography>
-  
-                  <Typography
-                    sx={{
-                      fontSize: {
-                        xs: "3.5rem",
-                        md: "4.5rem",
-                      },
-                      lineHeight: 1,
-                      fontWeight: 800,
-                      color: getScoreColor(
-                        analysis.overallScore
-                      ),
-                    }}
-                  >
-                    {analysis.overallScore}%
-                  </Typography>
-  
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 1 }}
-                  >
-                    Good resume
-                  </Typography>
-                </Box>
-  
-                <Divider
-                  orientation="vertical"
-                  flexItem
-                  sx={{
-                    display: {
-                      xs: "none",
-                      md: "block",
-                    },
-                  }}
-                />
-  
-                {/* Score details */}
-                <Box sx={{ flexGrow: 1, width: "100%" }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 700,
-                      mb: 3,
-                    }}
-                  >
-                    Score Breakdown
-                  </Typography>
-  
-                  <ScoreBar
-                    label="ATS Compatibility"
-                    score={analysis.atsScore}
-                  />
-  
-                  <ScoreBar
-                    label="Skills"
-                    score={analysis.skillsScore}
-                  />
-  
-                  <ScoreBar
-                    label="Experience"
-                    score={analysis.experienceScore}
-                  />
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-  
-          {/* Skills */}
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 3,
-              border: "1px solid",
-              borderColor: "divider",
-              mb: 3,
-            }}
-          >
-            <CardContent
-              sx={{
-                p: { xs: 2.5, md: 3 },
-              }}
-            >
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 700,
-                  mb: 1,
-                }}
-              >
-                Skills Detected
+
+            {skills.length === 0 ? (
+              <Typography color="text.secondary">
+                No skills detected.
               </Typography>
-  
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mb: 3 }}
-              >
-                Skills identified from your resume.
-              </Typography>
-  
+            ) : (
               <Box
                 sx={{
                   display: "flex",
@@ -316,310 +430,247 @@ import {
                   gap: 1.2,
                 }}
               >
-                {analysis.skills.map((skill) => (
+                {skills.map((item, index) => (
                   <Chip
-                    key={skill}
-                    label={skill}
+                    key={`${item.skill}-${index}`}
+                    label={
+                      item.confidence != null
+                        ? `${item.skill} (${Number(
+                            item.confidence
+                          ).toFixed(0)}%)`
+                        : item.skill
+                    }
                     variant="outlined"
                     color="primary"
                   />
                 ))}
               </Box>
-            </CardContent>
-          </Card>
-  
-          {/* Strengths and improvements */}
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "1fr 1fr",
-              },
-              gap: 3,
-              mb: 3,
-            }}
-          >
-            {/* Strengths */}
-            <Card
-              elevation={0}
-              sx={{
-                borderRadius: 3,
-                border: "1px solid",
-                borderColor: "divider",
-              }}
-            >
-              <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 2,
-                  }}
-                >
-                  Strengths
-                </Typography>
-  
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1.5,
-                  }}
-                >
-                  {analysis.strengths.map((strength) => (
-                    <Box
-                      key={strength}
-                      sx={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 1.2,
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          color: "success.main",
-                          fontWeight: 700,
-                        }}
-                      >
-                        ✓
-                      </Typography>
-  
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                      >
-                        {strength}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-  
-            {/* Areas to improve */}
-            <Card
-              elevation={0}
-              sx={{
-                borderRadius: 3,
-                border: "1px solid",
-                borderColor: "divider",
-              }}
-            >
-              <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 2,
-                  }}
-                >
-                  Areas to Improve
-                </Typography>
-  
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1.5,
-                  }}
-                >
-                  {analysis.improvements.map((item) => (
-                    <Box
-                      key={item}
-                      sx={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 1.2,
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          color: "warning.main",
-                          fontWeight: 700,
-                        }}
-                      >
-                        !
-                      </Typography>
-  
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                      >
-                        {item}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-  
-          {/* AI Recommendations */}
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 3,
-              border: "1px solid",
-              borderColor: "divider",
-              mb: 3,
-            }}
-          >
-            <CardContent
-              sx={{
-                p: { xs: 2.5, md: 3 },
-              }}
-            >
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 700,
-                  mb: 1,
-                }}
-              >
-                AI Recommendations
-              </Typography>
-  
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mb: 3 }}
-              >
-                Suggestions to make your resume stronger.
-              </Typography>
-  
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                {analysis.recommendations.map(
-                  (recommendation, index) => (
-                    <Box
-                      key={recommendation}
-                      sx={{
-                        display: "flex",
-                        gap: 2,
-                        p: 2,
-                        borderRadius: 2,
-                        backgroundColor:
-                          "rgba(37, 99, 235, 0.04)",
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: "50%",
-                          backgroundColor:
-                            "rgba(37, 99, 235, 0.1)",
-                          color: "primary.main",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {index + 1}
-                      </Box>
-  
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          alignSelf: "center",
-                        }}
-                      >
-                        {recommendation}
-                      </Typography>
-                    </Box>
-                  )
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-  
-          {/* Bottom actions */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 2,
-              flexWrap: "wrap",
-            }}
-          >
-            <Button
-              variant="outlined"
-              onClick={() => navigate("/dashboard")}
-              sx={{
-                textTransform: "none",
-                fontWeight: 600,
-              }}
-            >
-              Back to Dashboard
-            </Button>
-  
-            <Button
-              variant="contained"
-              onClick={() => navigate("/dashboard/upload")}
-              sx={{
-                textTransform: "none",
-                fontWeight: 600,
-              }}
-            >
-              Analyze Another Resume
-            </Button>
-          </Box>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Strengths + Weaknesses */}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: "1fr 1fr",
+            },
+            gap: 3,
+            mb: 3,
+          }}
+        >
+          <InfoCard
+            title="Strengths"
+            items={strengths}
+            symbol="✓"
+            color="success.main"
+          />
+
+          <InfoCard
+            title="Areas to Improve"
+            items={weaknesses}
+            symbol="!"
+            color="warning.main"
+          />
         </Box>
-      </Box>
-    );
-  }
-  
-  function ScoreBar({ label, score }) {
-    return (
-      <Box sx={{ mb: 2.5 }}>
+
+        {/* Suggestions */}
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+            mb: 3,
+          }}
+        >
+          <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                mb: 1,
+              }}
+            >
+              AI Recommendations
+            </Typography>
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 3 }}
+            >
+              Suggestions generated to improve your resume.
+            </Typography>
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              {suggestions.length === 0 ? (
+                <Typography color="text.secondary">
+                  No recommendations available.
+                </Typography>
+              ) : (
+                suggestions.map((suggestion, index) => (
+                  <Box
+                    key={`${suggestion}-${index}`}
+                    sx={{
+                      display: "flex",
+                      gap: 2,
+                      p: 2,
+                      borderRadius: 2,
+                      backgroundColor:
+                        "rgba(37, 99, 235, 0.04)",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: "50%",
+                        backgroundColor:
+                          "rgba(37, 99, 235, 0.1)",
+                        color: "primary.main",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {index + 1}
+                    </Box>
+
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        alignSelf: "center",
+                      }}
+                    >
+                      {suggestion}
+                    </Typography>
+                  </Box>
+                ))
+              )}
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* Actions */}
         <Box
           sx={{
             display: "flex",
             justifyContent: "space-between",
-            mb: 0.8,
+            gap: 2,
+            flexWrap: "wrap",
           }}
         >
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 600 }}
-          >
-            {label}
-          </Typography>
-  
-          <Typography
-            variant="body2"
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/resumes")}
             sx={{
-              fontWeight: 700,
-              color:
-                score >= 80
-                  ? "success.main"
-                  : score >= 60
-                  ? "warning.main"
-                  : "error.main",
+              textTransform: "none",
+              fontWeight: 600,
             }}
           >
-            {score}%
-          </Typography>
+            Back to My Resumes
+          </Button>
+
+          <Button
+            variant="contained"
+            disabled={analyzing}
+            onClick={analyzeAgain}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+            }}
+          >
+            {analyzing ? "Analyzing..." : "Analyze Again"}
+          </Button>
         </Box>
-  
-        <LinearProgress
-          variant="determinate"
-          value={score}
-          sx={{
-            height: 8,
-            borderRadius: 5,
-          }}
-        />
       </Box>
-    );
-  }
-  
-  export default ResumeAnalysis;
+    </Box>
+  );
+}
+
+function InfoCard({
+  title,
+  items,
+  symbol,
+  color,
+}) {
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        borderRadius: 3,
+        border: "1px solid",
+        borderColor: "divider",
+      }}
+    >
+      <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 700,
+            mb: 2,
+          }}
+        >
+          {title}
+        </Typography>
+
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 1.5,
+          }}
+        >
+          {items.length === 0 ? (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+            >
+              No information available.
+            </Typography>
+          ) : (
+            items.map((item, index) => (
+              <Box
+                key={`${item}-${index}`}
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1.2,
+                }}
+              >
+                <Typography
+                  sx={{
+                    color,
+                    fontWeight: 700,
+                  }}
+                >
+                  {symbol}
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  {item}
+                </Typography>
+              </Box>
+            ))
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default ResumeAnalysis;

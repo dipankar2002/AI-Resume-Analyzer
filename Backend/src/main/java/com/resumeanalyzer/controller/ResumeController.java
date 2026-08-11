@@ -1,37 +1,41 @@
 package com.resumeanalyzer.controller;
 
-import java.io.IOException;
+import com.resumeanalyzer.entity.Resume;
+import com.resumeanalyzer.entity.User;
+import com.resumeanalyzer.service.ResumeService;
+import com.resumeanalyzer.service.UserService;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.resumeanalyzer.entity.Resume;
-import com.resumeanalyzer.service.ResumeService;
-
 @RestController
 @RequestMapping("/api/resume")
-@CrossOrigin(origins = "http://localhost:5173")
 public class ResumeController {
 
     private final ResumeService resumeService;
+    private final UserService userService;
 
-    public ResumeController(ResumeService resumeService) {
+    public ResumeController(
+            ResumeService resumeService,
+            UserService userService) {
+
         this.resumeService = resumeService;
+        this.userService = userService;
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<Resume> uploadResume(
+    public Resume uploadResume(
             @RequestParam("file") MultipartFile file,
-            @AuthenticationPrincipal Jwt jwt) throws IOException {
+            Authentication authentication) throws Exception {
 
-        String clerkUserId = jwt.getSubject();
+        String clerkUserId = authentication.getName();
 
-        Resume resume =
-                resumeService.uploadResume(file, clerkUserId);
+        User user = userService.getOrCreateUser(clerkUserId);
 
-        return ResponseEntity.ok(resume);
+        return resumeService.uploadResume(
+                file,
+                user.getUserId()
+        );
     }
 }

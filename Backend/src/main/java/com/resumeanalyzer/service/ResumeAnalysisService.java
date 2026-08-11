@@ -4,6 +4,7 @@ import com.resumeanalyzer.entity.Resume;
 import com.resumeanalyzer.entity.ResumeAnalysis;
 import com.resumeanalyzer.repo.ResumeAnalysisRepository;
 import com.resumeanalyzer.repo.ResumeRepository;
+
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,11 +26,19 @@ public class ResumeAnalysisService {
         this.geminiService = geminiService;
     }
 
-    public ResumeAnalysis analyzeResume(Integer resumeId) {
+    public ResumeAnalysis analyzeResume(
+            Integer resumeId,
+            Integer userId) {
 
         Resume resume = resumeRepository.findById(resumeId)
                 .orElseThrow(() ->
                         new RuntimeException("Resume not found"));
+
+        if (!resume.getUser().getUserId().equals(userId)) {
+            throw new RuntimeException(
+                    "Resume does not belong to this user"
+            );
+        }
 
         ResumeAnalysisResponse aiResult =
                 geminiService.analyzeResumeContent(
@@ -42,6 +51,7 @@ public class ResumeAnalysisService {
                         .orElseGet(ResumeAnalysis::new);
 
         analysis.setResume(resume);
+
         analysis.setAtsScore(aiResult.atsScore());
 
         analysis.setProfessionalSummary(

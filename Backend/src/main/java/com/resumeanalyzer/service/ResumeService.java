@@ -30,9 +30,9 @@ public class ResumeService {
 
     public Resume uploadResume(
             MultipartFile file,
-            String clerkUserId) throws IOException {
+            Integer userId) throws IOException {
 
-        User user = userRepository.findByClerkUserId(clerkUserId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
 
@@ -48,13 +48,17 @@ public class ResumeService {
         return resumeRepository.save(resume);
     }
 
-    public String extractText(MultipartFile file) throws IOException {
+    public String extractText(
+            MultipartFile file) throws IOException {
 
-        try (InputStream inputStream = file.getInputStream();
-             PDDocument document =
-                     Loader.loadPDF(inputStream.readAllBytes())) {
+        try (
+            InputStream inputStream = file.getInputStream();
+            PDDocument document =
+                    Loader.loadPDF(inputStream.readAllBytes())
+        ) {
 
-            PDFTextStripper stripper = new PDFTextStripper();
+            PDFTextStripper stripper =
+                    new PDFTextStripper();
 
             return stripper.getText(document);
         }
