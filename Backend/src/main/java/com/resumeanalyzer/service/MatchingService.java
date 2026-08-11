@@ -1,32 +1,27 @@
 package com.resumeanalyzer.service;
 
+import com.resumeanalyzer.dto.MatchExplanationResponse;
+import com.resumeanalyzer.dto.SkillMatchDetail;
 import com.resumeanalyzer.entity.Job;
 import com.resumeanalyzer.entity.JobSkill;
 import com.resumeanalyzer.entity.MatchResult;
-import com.resumeanalyzer.entity.Resume;
 import com.resumeanalyzer.entity.ResumeSkill;
 import com.resumeanalyzer.repo.JobRepository;
 import com.resumeanalyzer.repo.JobSkillRepository;
 import com.resumeanalyzer.repo.MatchResultRepository;
 import com.resumeanalyzer.repo.ResumeRepository;
 import com.resumeanalyzer.repo.ResumeSkillRepository;
+
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.time.LocalDateTime;
-import com.resumeanalyzer.dto.MatchExplanationResponse;
-import com.resumeanalyzer.dto.SkillMatchDetail;
-import com.resumeanalyzer.entity.ResumeSkill;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.math.RoundingMode;
+
 @Service
 public class MatchingService {
 
@@ -54,129 +49,34 @@ public class MatchingService {
             Integer resumeId,
             Integer jobId) {
 
+        validateResumeAndJob(resumeId, jobId);
+
         List<ResumeSkill> resumeSkills =
-                resumeSkillRepository.findAll()
-                        .stream()
-                        .filter(rs ->
-                                rs.getResume()
-                                        .getResumeId()
-                                        .equals(resumeId))
-                        .toList();
+                resumeSkillRepository.findByResumeResumeId(resumeId);
 
         List<JobSkill> jobSkills =
                 jobSkillRepository.findByJobJobId(jobId);
 
-        Map<String, BigDecimal> candidateSkills = new HashMap<>();
-
-        for (ResumeSkill resumeSkill : resumeSkills) {
-
-            String skillName =
-                    resumeSkill.getSkill()
-                            .getSkillName()
-                            .toLowerCase();
-
-            candidateSkills.put(
-                    skillName,
-                    resumeSkill.getConfidence()
-            );
-        }
-
-        BigDecimal totalScore = BigDecimal.ZERO;
-
-        for (JobSkill jobSkill : jobSkills) {
-
-            String skillName =
-                    jobSkill.getSkill()
-                            .getSkillName()
-                            .toLowerCase();
-
-            BigDecimal confidence =
-                    candidateSkills.get(skillName);
-
-            if (confidence != null) {
-
-                BigDecimal contribution =
-                        confidence
-                                .divide(
-                                        BigDecimal.valueOf(100),
-                                        4,
-                                        RoundingMode.HALF_UP
-                                )
-                                .multiply(jobSkill.getWeight());
-
-                totalScore = totalScore.add(contribution);
-            }
-        }
-
-        BigDecimal finalScore =
-                totalScore.setScale(
-                        2,
-                        RoundingMode.HALF_UP
-                );
-
-        // Get resume and job
-        Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() ->
-                        new RuntimeException("Resume not found"));
-
-        Job job = jobRepository.findById(jobId)
-                .orElseThrow(() ->
-                        new RuntimeException("Job not found"));
-
-        // Check if result already exists
-        MatchResult matchResult =
-                matchResultRepository
-                        .findByResumeResumeIdAndJobJobId(
-                                resumeId,
-                                jobId
-                        )
-                        .orElseGet(MatchResult::new);
-
-        matchResult.setResume(resume);
-        matchResult.setJob(job);
-        matchResult.setMatchScore(finalScore);
-        matchResult.setMatchedAt(LocalDateTime.now());
-
-        matchResultRepository.save(matchResult);
-
-        return finalScore;
+        return calculateScore(resumeSkills, jobSkills);
     }
+
     public MatchExplanationResponse explainMatch(
             Integer resumeId,
             Integer jobId) {
 
+        validateResumeAndJob(resumeId, jobId);
+
         List<ResumeSkill> resumeSkills =
-                resumeSkillRepository.findAll()
-                        .stream()
-                        .filter(rs ->
-                                rs.getResume()
-                                        .getResumeId()
-                                        .equals(resumeId))
-                        .toList();
+                resumeSkillRepository.findByResumeResumeId(resumeId);
 
         List<JobSkill> jobSkills =
                 jobSkillRepository.findByJobJobId(jobId);
 
-        Map<String, BigDecimal> candidateSkills = new HashMap<>();
+        Map<String, BigDecimal> candidateSkills =
+                buildCandidateSkills(resumeSkills);
 
-        for (ResumeSkill resumeSkill : resumeSkills) {
-
-            String skillName =
-                    resumeSkill.getSkill()
-                            .getSkillName()
-                            .toLowerCase();
-
-            candidateSkills.put(
-                    skillName,
-                    resumeSkill.getConfidence()
-            );
-        }
-
-        List<SkillMatchDetail> matchedSkills =
-                new java.util.ArrayList<>();
-
-        List<String> missingSkills =
-                new java.util.ArrayList<>();
+        List<SkillMatchDetail> matchedSkills = new ArrayList<>();
+        List<String> missingSkills = new ArrayList<>();
 
         BigDecimal totalScore = BigDecimal.ZERO;
 
@@ -193,22 +93,12 @@ public class MatchingService {
             if (confidence != null) {
 
                 BigDecimal contribution =
-                        confidence
-                                .divide(
-                                        BigDecimal.valueOf(100),
-                                        4,
-                                        RoundingMode.HALF_UP
-                                )
-                                .multiply(jobSkill.getWeight());
-
-                contribution =
-                        contribution.setScale(
-                                2,
-                                RoundingMode.HALF_UP
+                        calculateContribution(
+                                confidence,
+                                jobSkill.getWeight()
                         );
 
-                totalScore =
-                        totalScore.add(contribution);
+                totalScore = totalScore.add(contribution);
 
                 matchedSkills.add(
                         new SkillMatchDetail(
@@ -220,7 +110,6 @@ public class MatchingService {
                 );
 
             } else {
-
                 missingSkills.add(
                         jobSkill.getSkill().getSkillName()
                 );
@@ -244,5 +133,124 @@ public class MatchingService {
                 matchedSkills,
                 missingSkills
         );
+    }
+
+    public MatchResult saveMatchResult(
+            Integer resumeId,
+            Integer jobId) {
+
+        BigDecimal score =
+                calculateMatchScore(resumeId, jobId);
+
+        var resume = resumeRepository.findById(resumeId)
+                .orElseThrow(() ->
+                        new RuntimeException("Resume not found"));
+
+        var job = jobRepository.findById(jobId)
+                .orElseThrow(() ->
+                        new RuntimeException("Job not found"));
+
+        MatchResult matchResult =
+                matchResultRepository
+                        .findByResumeResumeIdAndJobJobId(
+                                resumeId,
+                                jobId
+                        )
+                        .orElseGet(MatchResult::new);
+
+        matchResult.setResume(resume);
+        matchResult.setJob(job);
+        matchResult.setMatchScore(score);
+        matchResult.setMatchedAt(LocalDateTime.now());
+
+        return matchResultRepository.save(matchResult);
+    }
+
+    private BigDecimal calculateScore(
+            List<ResumeSkill> resumeSkills,
+            List<JobSkill> jobSkills) {
+
+        Map<String, BigDecimal> candidateSkills =
+                buildCandidateSkills(resumeSkills);
+
+        BigDecimal totalScore = BigDecimal.ZERO;
+
+        for (JobSkill jobSkill : jobSkills) {
+
+            String skillName =
+                    jobSkill.getSkill()
+                            .getSkillName()
+                            .toLowerCase();
+
+            BigDecimal confidence =
+                    candidateSkills.get(skillName);
+
+            if (confidence != null) {
+
+                totalScore = totalScore.add(
+                        calculateContribution(
+                                confidence,
+                                jobSkill.getWeight()
+                        )
+                );
+            }
+        }
+
+        return totalScore.setScale(
+                2,
+                RoundingMode.HALF_UP
+        );
+    }
+
+    private BigDecimal calculateContribution(
+            BigDecimal confidence,
+            BigDecimal weight) {
+
+        return confidence
+                .divide(
+                        BigDecimal.valueOf(100),
+                        4,
+                        RoundingMode.HALF_UP
+                )
+                .multiply(weight)
+                .setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                );
+    }
+
+    private Map<String, BigDecimal> buildCandidateSkills(
+            List<ResumeSkill> resumeSkills) {
+
+        Map<String, BigDecimal> candidateSkills =
+                new HashMap<>();
+
+        for (ResumeSkill resumeSkill : resumeSkills) {
+
+            String skillName =
+                    resumeSkill.getSkill()
+                            .getSkillName()
+                            .toLowerCase();
+
+            candidateSkills.put(
+                    skillName,
+                    resumeSkill.getConfidence()
+            );
+        }
+
+        return candidateSkills;
+    }
+
+    private void validateResumeAndJob(
+            Integer resumeId,
+            Integer jobId) {
+
+        if (!resumeRepository.existsById(resumeId)) {
+            throw new RuntimeException("Resume not found");
+        }
+
+        if (!jobRepository.existsById(jobId)) {
+            throw new RuntimeException("Job not found");
+        }
     }
 }

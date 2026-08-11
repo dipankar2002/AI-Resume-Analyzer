@@ -4,6 +4,7 @@ import com.resumeanalyzer.service.MatchingService;
 import org.springframework.web.bind.annotation.*;
 import com.resumeanalyzer.dto.MatchExplanationResponse;
 import java.math.BigDecimal;
+import com.resumeanalyzer.entity.MatchResult;
 
 @RestController
 @RequestMapping("/api/matching")
@@ -31,6 +32,17 @@ public class MatchingController {
             @PathVariable Integer jobId) {
 
         return matchingService.explainMatch(
+                resumeId,
+                jobId
+        );
+    }
+
+    @PostMapping("/{resumeId}/{jobId}")
+    public MatchResult saveMatch(
+            @PathVariable Integer resumeId,
+            @PathVariable Integer jobId) {
+
+        return matchingService.saveMatchResult(
                 resumeId,
                 jobId
         );
