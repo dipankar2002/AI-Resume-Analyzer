@@ -78,7 +78,8 @@ public class MatchingService {
         List<SkillMatchDetail> matchedSkills = new ArrayList<>();
         List<String> missingSkills = new ArrayList<>();
 
-        BigDecimal totalScore = BigDecimal.ZERO;
+        BigDecimal totalContribution = BigDecimal.ZERO;
+        BigDecimal totalWeight = BigDecimal.ZERO;
 
         for (JobSkill jobSkill : jobSkills) {
 
@@ -86,6 +87,10 @@ public class MatchingService {
                     jobSkill.getSkill()
                             .getSkillName()
                             .toLowerCase();
+
+            BigDecimal weight = jobSkill.getWeight();
+
+            totalWeight = totalWeight.add(weight);
 
             BigDecimal confidence =
                     candidateSkills.get(skillName);
@@ -95,21 +100,23 @@ public class MatchingService {
                 BigDecimal contribution =
                         calculateContribution(
                                 confidence,
-                                jobSkill.getWeight()
+                                weight
                         );
 
-                totalScore = totalScore.add(contribution);
+                totalContribution =
+                        totalContribution.add(contribution);
 
                 matchedSkills.add(
                         new SkillMatchDetail(
                                 jobSkill.getSkill().getSkillName(),
                                 confidence,
-                                jobSkill.getWeight(),
+                                weight,
                                 contribution
                         )
                 );
 
             } else {
+
                 missingSkills.add(
                         jobSkill.getSkill().getSkillName()
                 );
@@ -117,9 +124,9 @@ public class MatchingService {
         }
 
         BigDecimal finalScore =
-                totalScore.setScale(
-                        2,
-                        RoundingMode.HALF_UP
+                calculateNormalizedScore(
+                        totalContribution,
+                        totalWeight
                 );
 
         Job job = jobRepository.findById(jobId)
@@ -170,12 +177,25 @@ public class MatchingService {
             List<ResumeSkill> resumeSkills,
             List<JobSkill> jobSkills) {
 
+        if (jobSkills.isEmpty()) {
+            return BigDecimal.ZERO.setScale(
+                    2,
+                    RoundingMode.HALF_UP
+            );
+        }
+
         Map<String, BigDecimal> candidateSkills =
                 buildCandidateSkills(resumeSkills);
 
-        BigDecimal totalScore = BigDecimal.ZERO;
+        BigDecimal totalContribution = BigDecimal.ZERO;
+        BigDecimal totalWeight = BigDecimal.ZERO;
 
         for (JobSkill jobSkill : jobSkills) {
+
+            BigDecimal weight = jobSkill.getWeight();
+
+            totalWeight =
+                    totalWeight.add(weight);
 
             String skillName =
                     jobSkill.getSkill()
@@ -187,18 +207,19 @@ public class MatchingService {
 
             if (confidence != null) {
 
-                totalScore = totalScore.add(
-                        calculateContribution(
-                                confidence,
-                                jobSkill.getWeight()
-                        )
-                );
+                totalContribution =
+                        totalContribution.add(
+                                calculateContribution(
+                                        confidence,
+                                        weight
+                                )
+                        );
             }
         }
 
-        return totalScore.setScale(
-                2,
-                RoundingMode.HALF_UP
+        return calculateNormalizedScore(
+                totalContribution,
+                totalWeight
         );
     }
 
@@ -209,10 +230,30 @@ public class MatchingService {
         return confidence
                 .divide(
                         BigDecimal.valueOf(100),
-                        4,
+                        6,
                         RoundingMode.HALF_UP
                 )
-                .multiply(weight)
+                .multiply(weight);
+    }
+
+    private BigDecimal calculateNormalizedScore(
+            BigDecimal totalContribution,
+            BigDecimal totalWeight) {
+
+        if (totalWeight.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO.setScale(
+                    2,
+                    RoundingMode.HALF_UP
+            );
+        }
+
+        return totalContribution
+                .divide(
+                        totalWeight,
+                        6,
+                        RoundingMode.HALF_UP
+                )
+                .multiply(BigDecimal.valueOf(100))
                 .setScale(
                         2,
                         RoundingMode.HALF_UP
