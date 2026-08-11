@@ -1,7 +1,6 @@
 package com.resumeanalyzer.controller;
 
 import com.resumeanalyzer.service.GeminiService;
-import com.resumeanalyzer.service.ResumeAnalysisResponse;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,19 +27,5 @@ public class GeminiController {
         return geminiService.extractSkills(resumeText);
     }
 
-    @PostMapping("/analyze/{resumeId}")
-    public List<GeminiService.ExtractedSkill> analyzeResume(
-            @PathVariable Integer resumeId) {
 
-        return geminiService.analyzeResume(resumeId);
-    }
-
-    @PostMapping("/ats/{resumeId}")
-    public ResumeAnalysisResponse analyzeATS(
-            @PathVariable Integer resumeId) {
-
-        return geminiService.analyzeResumeContent(
-                geminiService.getResumeText(resumeId)
-        );
-    }
 }

@@ -1,12 +1,9 @@
 package com.resumeanalyzer.service;
 
-import com.google.genai.Client;
-import com.google.genai.types.GenerateContentResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import com.resumeanalyzer.entity.Resume;
-import com.resumeanalyzer.repo.ResumeRepository;
+import com.google.genai.Client;
+import com.google.genai.types.GenerateContentResponse;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,12 +16,9 @@ public class GeminiService {
 
     private final Client client;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    private final ResumeRepository resumeRepository;
     private final ResumeSkillService resumeSkillService;
 
     public GeminiService(
-            ResumeRepository resumeRepository,
             ResumeSkillService resumeSkillService,
             @Value("${GEMINI_API_KEY}") String geminiApiKey) {
 
@@ -32,7 +26,6 @@ public class GeminiService {
                 .apiKey(geminiApiKey)
                 .build();
 
-        this.resumeRepository = resumeRepository;
         this.resumeSkillService = resumeSkillService;
     }
 
@@ -92,18 +85,6 @@ public class GeminiService {
         }
     }
 
-    public List<ExtractedSkill> analyzeResume(Integer resumeId) {
-
-        Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new RuntimeException("Resume not found"));
-
-        List<ExtractedSkill> skills =
-                extractSkills(resume.getExtractedText());
-
-        resumeSkillService.saveSkills(resumeId, skills);
-
-        return skills;
-    }
     public ResumeAnalysisResponse analyzeResumeContent(String resumeText) {
 
         String prompt = """
@@ -162,13 +143,6 @@ public class GeminiService {
                     e
             );
         }
-    }
-    public String getResumeText(Integer resumeId) {
-
-        Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new RuntimeException("Resume not found"));
-
-        return resume.getExtractedText();
     }
 
     public record ExtractedSkill(
