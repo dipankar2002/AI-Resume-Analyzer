@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class AdminMatchingService {
@@ -61,7 +60,7 @@ public class AdminMatchingService {
                     .toList();
 
             List<String> matchedSkills = explanation.matchedSkills().stream()
-                    .map(skill -> skill.skillName())
+                    .map(skill -> skill.skill())
                     .toList();
 
             results.add(new AdminJobMatchResponse(
