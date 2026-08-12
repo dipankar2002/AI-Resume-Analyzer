@@ -1,10 +1,12 @@
 package com.resumeanalyzer.controller;
 
-import com.resumeanalyzer.service.MatchingService;
-import org.springframework.web.bind.annotation.*;
 import com.resumeanalyzer.dto.MatchExplanationResponse;
-import java.math.BigDecimal;
 import com.resumeanalyzer.entity.MatchResult;
+import com.resumeanalyzer.service.MatchingService;
+
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/matching")
@@ -12,7 +14,9 @@ public class MatchingController {
 
     private final MatchingService matchingService;
 
-    public MatchingController(MatchingService matchingService) {
+    public MatchingController(
+            MatchingService matchingService) {
+
         this.matchingService = matchingService;
     }
 
@@ -26,6 +30,7 @@ public class MatchingController {
                 jobId
         );
     }
+
     @GetMapping("/{resumeId}/{jobId}/explanation")
     public MatchExplanationResponse explainMatch(
             @PathVariable Integer resumeId,

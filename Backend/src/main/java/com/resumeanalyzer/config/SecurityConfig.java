@@ -23,9 +23,15 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/ai/test").permitAll()
-                .anyRequest().authenticated()
-            )
+            	    .requestMatchers(
+            	        "/api/ai/test",
+            	        "/api/adzuna/**",
+            	        "/api/job-skills/**",
+            	        "/api/matching/**",
+            	        "/api/recommendations/**"
+            	    ).permitAll()
+            	    .anyRequest().authenticated()
+            	)
 
             .oauth2ResourceServer(oauth2 ->
                 oauth2.jwt(jwt -> {})

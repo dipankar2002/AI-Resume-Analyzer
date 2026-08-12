@@ -6,6 +6,7 @@ import com.google.genai.Client;
 import com.google.genai.types.GenerateContentResponse;
 import com.resumeanalyzer.entity.Resume;
 import com.resumeanalyzer.repo.ResumeRepository;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +35,10 @@ public class GeminiService {
         this.resumeSkillService = resumeSkillService;
     }
 
+    // ---------------------------------------------------------
+    // TEST GEMINI
+    // ---------------------------------------------------------
+
     public String testGemini() {
 
         GenerateContentResponse response = client.models.generateContent(
@@ -44,6 +49,10 @@ public class GeminiService {
 
         return response.text();
     }
+
+    // ---------------------------------------------------------
+    // EXTRACT SKILLS FROM RESUME
+    // ---------------------------------------------------------
 
     public List<ExtractedSkill> extractSkills(String resumeText) {
 
@@ -90,6 +99,62 @@ public class GeminiService {
         }
     }
 
+    // ---------------------------------------------------------
+    // EXTRACT SKILLS FROM JOB DESCRIPTION
+    // ---------------------------------------------------------
+
+    public List<ExtractedSkill> extractJobSkills(String jobDescription) {
+
+        String prompt = """
+                Analyze the following job description and extract ONLY the
+                technical and professional skills relevant to the job.
+
+                For every skill, provide a confidence score from 0 to 100.
+                The confidence represents how strongly the job description
+                indicates that this skill is required or preferred.
+
+                Return ONLY valid JSON.
+                Do not use markdown.
+                Do not add explanations.
+
+                Required format:
+                [
+                  {"skill":"Java","confidence":95},
+                  {"skill":"Spring Boot","confidence":90},
+                  {"skill":"MySQL","confidence":85}
+                ]
+
+                Do not include duplicate skills.
+
+                Job Description:
+                """ + jobDescription;
+
+        GenerateContentResponse response = client.models.generateContent(
+                "gemini-3.6-flash",
+                prompt,
+                null
+        );
+
+        try {
+
+            return objectMapper.readValue(
+                    response.text(),
+                    new TypeReference<List<ExtractedSkill>>() {}
+            );
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Failed to parse Gemini job skill response",
+                    e
+            );
+        }
+    }
+
+    // ---------------------------------------------------------
+    // ANALYZE RESUME SKILLS
+    // ---------------------------------------------------------
+
     public List<ExtractedSkill> analyzeResume(Integer resumeId) {
 
         Resume resume = resumeRepository.findById(resumeId)
@@ -103,6 +168,10 @@ public class GeminiService {
 
         return skills;
     }
+
+    // ---------------------------------------------------------
+    // ATS RESUME ANALYSIS
+    // ---------------------------------------------------------
 
     public ResumeAnalysisResponse analyzeResumeContent(String resumeText) {
 
@@ -164,6 +233,10 @@ public class GeminiService {
         }
     }
 
+    // ---------------------------------------------------------
+    // GET RESUME TEXT
+    // ---------------------------------------------------------
+
     public String getResumeText(Integer resumeId) {
 
         Resume resume = resumeRepository.findById(resumeId)
@@ -172,6 +245,10 @@ public class GeminiService {
 
         return resume.getExtractedText();
     }
+
+    // ---------------------------------------------------------
+    // EXTRACTED SKILL RECORD
+    // ---------------------------------------------------------
 
     public record ExtractedSkill(
             String skill,

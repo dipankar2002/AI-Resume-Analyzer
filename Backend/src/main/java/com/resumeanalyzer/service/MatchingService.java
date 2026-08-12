@@ -45,6 +45,10 @@ public class MatchingService {
         this.matchResultRepository = matchResultRepository;
     }
 
+    // =========================================================
+    // BASIC MATCH SCORE
+    // =========================================================
+
     public BigDecimal calculateMatchScore(
             Integer resumeId,
             Integer jobId) {
@@ -57,8 +61,15 @@ public class MatchingService {
         List<JobSkill> jobSkills =
                 jobSkillRepository.findByJobJobId(jobId);
 
-        return calculateScore(resumeSkills, jobSkills);
+        return calculateScore(
+                resumeSkills,
+                jobSkills
+        );
     }
+
+    // =========================================================
+    // MATCH EXPLANATION
+    // =========================================================
 
     public MatchExplanationResponse explainMatch(
             Integer resumeId,
@@ -72,28 +83,45 @@ public class MatchingService {
         List<JobSkill> jobSkills =
                 jobSkillRepository.findByJobJobId(jobId);
 
-        Map<String, BigDecimal> candidateSkills =
+        Map<Integer, BigDecimal> candidateSkills =
                 buildCandidateSkills(resumeSkills);
 
-        List<SkillMatchDetail> matchedSkills = new ArrayList<>();
-        List<String> missingSkills = new ArrayList<>();
+        List<SkillMatchDetail> matchedSkills =
+                new ArrayList<>();
 
-        BigDecimal totalContribution = BigDecimal.ZERO;
-        BigDecimal totalWeight = BigDecimal.ZERO;
+        List<String> missingSkills =
+                new ArrayList<>();
+
+        List<String> missingRequiredSkills =
+                new ArrayList<>();
+
+        List<String> missingPreferredSkills =
+                new ArrayList<>();
+
+        BigDecimal totalContribution =
+                BigDecimal.ZERO;
+
+        BigDecimal totalWeight =
+                BigDecimal.ZERO;
 
         for (JobSkill jobSkill : jobSkills) {
 
+            Integer skillId =
+                    jobSkill.getSkill()
+                            .getSkillId();
+
             String skillName =
                     jobSkill.getSkill()
-                            .getSkillName()
-                            .toLowerCase();
+                            .getSkillName();
 
-            BigDecimal weight = jobSkill.getWeight();
+            BigDecimal weight =
+                    jobSkill.getWeight();
 
-            totalWeight = totalWeight.add(weight);
+            totalWeight =
+                    totalWeight.add(weight);
 
             BigDecimal confidence =
-                    candidateSkills.get(skillName);
+                    candidateSkills.get(skillId);
 
             if (confidence != null) {
 
@@ -104,58 +132,108 @@ public class MatchingService {
                         );
 
                 totalContribution =
-                        totalContribution.add(contribution);
+                        totalContribution.add(
+                                contribution
+                        );
 
                 matchedSkills.add(
                         new SkillMatchDetail(
-                                jobSkill.getSkill().getSkillName(),
+                                skillName,
                                 confidence,
                                 weight,
-                                contribution
+                                contribution,
+                                jobSkill.getImportance().name()
                         )
                 );
 
             } else {
 
-                missingSkills.add(
-                        jobSkill.getSkill().getSkillName()
-                );
+                missingSkills.add(skillName);
+
+                if (jobSkill.getImportance()
+                        == JobSkill.Importance.REQUIRED) {
+
+                    missingRequiredSkills.add(
+                            skillName
+                    );
+
+                } else {
+
+                    missingPreferredSkills.add(
+                            skillName
+                    );
+                }
             }
         }
 
+        /*
+         * IMPORTANT:
+         *
+         * No additional REQUIRED skill penalty.
+         *
+         * Skill importance is already represented by
+         * the weight assigned to each JobSkill.
+         *
+         * Missing skills naturally contribute 0.
+         */
         BigDecimal finalScore =
                 calculateNormalizedScore(
                         totalContribution,
                         totalWeight
                 );
 
-        Job job = jobRepository.findById(jobId)
-                .orElseThrow(() ->
-                        new RuntimeException("Job not found"));
+        String matchLevel =
+                getMatchLevel(finalScore);
+
+        Job job =
+                jobRepository.findById(jobId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Job not found"
+                                )
+                        );
 
         return new MatchExplanationResponse(
                 job.getJobId(),
                 job.getTitle(),
                 finalScore,
+                matchLevel,
                 matchedSkills,
-                missingSkills
+                missingSkills,
+                missingRequiredSkills,
+                missingPreferredSkills
         );
     }
+
+    // =========================================================
+    // SAVE MATCH RESULT
+    // =========================================================
 
     public MatchResult saveMatchResult(
             Integer resumeId,
             Integer jobId) {
 
         BigDecimal score =
-                calculateMatchScore(resumeId, jobId);
+                calculateMatchScore(
+                        resumeId,
+                        jobId
+                );
 
-        var resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() ->
-                        new RuntimeException("Resume not found"));
+        var resume =
+                resumeRepository.findById(resumeId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Resume not found"
+                                )
+                        );
 
-        var job = jobRepository.findById(jobId)
-                .orElseThrow(() ->
-                        new RuntimeException("Job not found"));
+        var job =
+                jobRepository.findById(jobId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Job not found"
+                                )
+                        );
 
         MatchResult matchResult =
                 matchResultRepository
@@ -163,47 +241,61 @@ public class MatchingService {
                                 resumeId,
                                 jobId
                         )
-                        .orElseGet(MatchResult::new);
+                        .orElseGet(
+                                MatchResult::new
+                        );
 
         matchResult.setResume(resume);
         matchResult.setJob(job);
         matchResult.setMatchScore(score);
-        matchResult.setMatchedAt(LocalDateTime.now());
+        matchResult.setMatchedAt(
+                LocalDateTime.now()
+        );
 
-        return matchResultRepository.save(matchResult);
+        return matchResultRepository.save(
+                matchResult
+        );
     }
+
+    // =========================================================
+    // SCORE CALCULATION
+    // =========================================================
 
     private BigDecimal calculateScore(
             List<ResumeSkill> resumeSkills,
             List<JobSkill> jobSkills) {
 
         if (jobSkills.isEmpty()) {
+
             return BigDecimal.ZERO.setScale(
                     2,
                     RoundingMode.HALF_UP
             );
         }
 
-        Map<String, BigDecimal> candidateSkills =
+        Map<Integer, BigDecimal> candidateSkills =
                 buildCandidateSkills(resumeSkills);
 
-        BigDecimal totalContribution = BigDecimal.ZERO;
-        BigDecimal totalWeight = BigDecimal.ZERO;
+        BigDecimal totalContribution =
+                BigDecimal.ZERO;
+
+        BigDecimal totalWeight =
+                BigDecimal.ZERO;
 
         for (JobSkill jobSkill : jobSkills) {
 
-            BigDecimal weight = jobSkill.getWeight();
+            BigDecimal weight =
+                    jobSkill.getWeight();
 
             totalWeight =
                     totalWeight.add(weight);
 
-            String skillName =
+            Integer skillId =
                     jobSkill.getSkill()
-                            .getSkillName()
-                            .toLowerCase();
+                            .getSkillId();
 
             BigDecimal confidence =
-                    candidateSkills.get(skillName);
+                    candidateSkills.get(skillId);
 
             if (confidence != null) {
 
@@ -223,6 +315,43 @@ public class MatchingService {
         );
     }
 
+    // =========================================================
+    // NORMALIZED SCORE
+    // =========================================================
+
+    private BigDecimal calculateNormalizedScore(
+            BigDecimal totalContribution,
+            BigDecimal totalWeight) {
+
+        if (totalWeight.compareTo(
+                BigDecimal.ZERO
+        ) == 0) {
+
+            return BigDecimal.ZERO.setScale(
+                    2,
+                    RoundingMode.HALF_UP
+            );
+        }
+
+        return totalContribution
+                .divide(
+                        totalWeight,
+                        6,
+                        RoundingMode.HALF_UP
+                )
+                .multiply(
+                        BigDecimal.valueOf(100)
+                )
+                .setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                );
+    }
+
+    // =========================================================
+    // CONTRIBUTION
+    // =========================================================
+
     private BigDecimal calculateContribution(
             BigDecimal confidence,
             BigDecimal weight) {
@@ -236,45 +365,24 @@ public class MatchingService {
                 .multiply(weight);
     }
 
-    private BigDecimal calculateNormalizedScore(
-            BigDecimal totalContribution,
-            BigDecimal totalWeight) {
+    // =========================================================
+    // BUILD CANDIDATE SKILLS
+    // =========================================================
 
-        if (totalWeight.compareTo(BigDecimal.ZERO) == 0) {
-            return BigDecimal.ZERO.setScale(
-                    2,
-                    RoundingMode.HALF_UP
-            );
-        }
-
-        return totalContribution
-                .divide(
-                        totalWeight,
-                        6,
-                        RoundingMode.HALF_UP
-                )
-                .multiply(BigDecimal.valueOf(100))
-                .setScale(
-                        2,
-                        RoundingMode.HALF_UP
-                );
-    }
-
-    private Map<String, BigDecimal> buildCandidateSkills(
+    private Map<Integer, BigDecimal> buildCandidateSkills(
             List<ResumeSkill> resumeSkills) {
 
-        Map<String, BigDecimal> candidateSkills =
+        Map<Integer, BigDecimal> candidateSkills =
                 new HashMap<>();
 
         for (ResumeSkill resumeSkill : resumeSkills) {
 
-            String skillName =
+            Integer skillId =
                     resumeSkill.getSkill()
-                            .getSkillName()
-                            .toLowerCase();
+                            .getSkillId();
 
             candidateSkills.put(
-                    skillName,
+                    skillId,
                     resumeSkill.getConfidence()
             );
         }
@@ -282,16 +390,68 @@ public class MatchingService {
         return candidateSkills;
     }
 
+    // =========================================================
+    // MATCH LEVEL
+    // =========================================================
+
+    private String getMatchLevel(
+            BigDecimal score) {
+
+        if (score.compareTo(
+                BigDecimal.valueOf(80)
+        ) >= 0) {
+
+            return "EXCELLENT";
+        }
+
+        if (score.compareTo(
+                BigDecimal.valueOf(65)
+        ) >= 0) {
+
+            return "GOOD";
+        }
+
+        if (score.compareTo(
+                BigDecimal.valueOf(50)
+        ) >= 0) {
+
+            return "MODERATE";
+        }
+
+        if (score.compareTo(
+                BigDecimal.valueOf(30)
+        ) >= 0) {
+
+            return "LOW";
+        }
+
+        return "VERY_LOW";
+    }
+
+    // =========================================================
+    // VALIDATION
+    // =========================================================
+
     private void validateResumeAndJob(
             Integer resumeId,
             Integer jobId) {
 
-        if (!resumeRepository.existsById(resumeId)) {
-            throw new RuntimeException("Resume not found");
+        if (!resumeRepository.existsById(
+                resumeId
+        )) {
+
+            throw new RuntimeException(
+                    "Resume not found"
+            );
         }
 
-        if (!jobRepository.existsById(jobId)) {
-            throw new RuntimeException("Job not found");
+        if (!jobRepository.existsById(
+                jobId
+        )) {
+
+            throw new RuntimeException(
+                    "Job not found"
+            );
         }
     }
 }

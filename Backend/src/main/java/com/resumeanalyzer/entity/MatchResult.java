@@ -26,7 +26,12 @@ public class MatchResult {
     @JoinColumn(name = "job_id", nullable = false)
     private Job job;
 
-    @Column(name = "match_score", nullable = false, precision = 5, scale = 2)
+    @Column(
+        name = "match_score",
+        nullable = false,
+        precision = 5,
+        scale = 2
+    )
     private BigDecimal matchScore;
 
     @Column(name = "matched_at")

@@ -22,21 +22,35 @@ public class RecommendationController {
             RecommendationService recommendationService,
             UserService userService) {
 
-        this.recommendationService = recommendationService;
-        this.userService = userService;
+        this.recommendationService =
+                recommendationService;
+
+        this.userService =
+                userService;
+    }
+    @GetMapping("/{userId}")
+    public List<JobRecommendationResponse> getRecommendationsByUser(
+            @PathVariable Integer userId) {
+
+        return recommendationService.getRecommendations(userId);
     }
 
     @GetMapping("/me")
-    public List<JobRecommendationResponse> getRecommendations(
+    public List<JobRecommendationResponse>
+    getRecommendations(
             @AuthenticationPrincipal Jwt jwt) {
 
-        String clerkUserId = jwt.getSubject();
+        String clerkUserId =
+                jwt.getSubject();
 
         User user =
-                userService.getOrCreateUser(clerkUserId);
+                userService.getOrCreateUser(
+                        clerkUserId
+                );
 
-        return recommendationService.getRecommendations(
-                user.getUserId()
-        );
+        return recommendationService
+                .getRecommendations(
+                        user.getUserId()
+                );
     }
 }

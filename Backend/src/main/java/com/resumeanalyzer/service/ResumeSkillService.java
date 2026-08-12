@@ -7,11 +7,9 @@ import com.resumeanalyzer.entity.Skill;
 import com.resumeanalyzer.repo.ResumeRepository;
 import com.resumeanalyzer.repo.ResumeSkillRepository;
 import com.resumeanalyzer.repo.SkillRepository;
-import org.springframework.stereotype.Service;
-import java.util.List;
-import com.resumeanalyzer.service.GeminiService;
 
-import java.math.BigDecimal;
+import org.springframework.stereotype.Service;
+
 import java.util.List;
 
 @Service
@@ -35,36 +33,63 @@ public class ResumeSkillService {
             Integer resumeId,
             List<GeminiService.ExtractedSkill> extractedSkills) {
 
-        Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new RuntimeException("Resume not found"));
+        Resume resume =
+                resumeRepository.findById(resumeId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Resume not found"
+                                )
+                        );
 
-        for (GeminiService.ExtractedSkill extractedSkill : extractedSkills) {
+        for (GeminiService.ExtractedSkill extractedSkill :
+                extractedSkills) {
 
-            String skillName = extractedSkill.skill().trim();
+            if (extractedSkill.skill() == null
+                    || extractedSkill.skill().isBlank()) {
+                continue;
+            }
 
-            Skill skill = skillRepository
-                    .findBySkillNameIgnoreCase(skillName)
-                    .orElseGet(() -> {
-                        Skill newSkill = new Skill();
-                        newSkill.setSkillName(skillName);
-                        return skillRepository.save(newSkill);
-                    });
+            String skillName =
+                    extractedSkill.skill().trim();
 
-            ResumeSkillId id = new ResumeSkillId(
-                    resume.getResumeId(),
-                    skill.getSkillId()
-            );
+            Skill skill =
+                    skillRepository
+                            .findBySkillNameIgnoreCase(skillName)
+                            .orElseGet(() -> {
 
-            ResumeSkill resumeSkill = new ResumeSkill();
+                                Skill newSkill =
+                                        new Skill();
+
+                                newSkill.setSkillName(
+                                        skillName
+                                );
+
+                                return skillRepository.save(
+                                        newSkill
+                                );
+                            });
+
+            ResumeSkillId id =
+                    new ResumeSkillId(
+                            resume.getResumeId(),
+                            skill.getSkillId()
+                    );
+
+            ResumeSkill resumeSkill =
+                    new ResumeSkill();
 
             resumeSkill.setId(id);
             resumeSkill.setResume(resume);
             resumeSkill.setSkill(skill);
 
-            // Store Gemini's confidence score
-            resumeSkill.setConfidence(extractedSkill.confidence());
+            // Gemini confidence score
+            resumeSkill.setConfidence(
+                    extractedSkill.confidence()
+            );
 
-            resumeSkillRepository.save(resumeSkill);
+            resumeSkillRepository.save(
+                    resumeSkill
+            );
         }
     }
 }
