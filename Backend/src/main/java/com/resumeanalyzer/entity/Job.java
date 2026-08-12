@@ -33,7 +33,8 @@ public class Job {
     @Column(name = "posted_date")
     private LocalDateTime postedDate;
 
-    
+    @Column(name = "redirect_url", columnDefinition = "TEXT")
+    private String redirectUrl;
 
     @ManyToOne
     @JoinColumn(name = "created_by", nullable = true)
@@ -106,9 +107,13 @@ public class Job {
         this.postedDate = postedDate;
     }
 
-   
+    public String getRedirectUrl() {
+        return redirectUrl;
+    }
 
-  
+    public void setRedirectUrl(String redirectUrl) {
+        this.redirectUrl = redirectUrl;
+    }  
 
     public User getCreatedBy() {
         return createdBy;

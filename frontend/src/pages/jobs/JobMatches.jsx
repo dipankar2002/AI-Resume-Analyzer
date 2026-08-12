@@ -429,9 +429,7 @@ function JobMatches() {
                     <Button
                       variant="contained"
                       onClick={() =>
-                        alert(
-                          `Opening job: ${job.title} at ${job.company}`
-                        )
+                        navigate(`/jobs/${job.jobId}`)
                       }
                       sx={{
                         textTransform: "none",

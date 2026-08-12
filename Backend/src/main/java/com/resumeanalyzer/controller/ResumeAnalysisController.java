@@ -8,6 +8,8 @@ import com.resumeanalyzer.service.UserService;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/resume-analysis")
 public class ResumeAnalysisController {
@@ -34,6 +36,19 @@ public class ResumeAnalysisController {
 
         return resumeAnalysisService.analyzeResume(
                 resumeId,
+                user.getUserId()
+        );
+    }
+
+    @GetMapping("/me")
+    public List<ResumeAnalysis> getMyAnalyses(
+            Authentication authentication) {
+
+        String clerkUserId = authentication.getName();
+
+        User user = userService.getOrCreateUser(clerkUserId);
+
+        return resumeAnalysisService.getUserAnalyses(
                 user.getUserId()
         );
     }

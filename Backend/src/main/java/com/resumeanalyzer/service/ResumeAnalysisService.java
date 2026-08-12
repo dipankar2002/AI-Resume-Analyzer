@@ -8,6 +8,7 @@ import com.resumeanalyzer.repo.ResumeRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class ResumeAnalysisService {
@@ -73,5 +74,11 @@ public class ResumeAnalysisService {
         analysis.setAnalyzedAt(LocalDateTime.now());
 
         return resumeAnalysisRepository.save(analysis);
+    }
+
+    public List<ResumeAnalysis> getUserAnalyses(Integer userId) {
+
+        return resumeAnalysisRepository
+                .findByResumeUserUserId(userId);
     }
 }

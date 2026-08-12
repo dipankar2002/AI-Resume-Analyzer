@@ -96,6 +96,8 @@ public class AdzunaService {
 
             job.setDescription(adzunaJob.description());
 
+            job.setRedirectUrl(adzunaJob.redirect_url());
+
             job.setSalary(
                     buildSalary(
                             adzunaJob.salary_min(),

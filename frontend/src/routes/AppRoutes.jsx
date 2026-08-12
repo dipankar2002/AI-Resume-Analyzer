@@ -11,6 +11,7 @@ import ResumeAnalysis from "../pages/analysis/ResumeAnalysis";
 import MyResumes from "../pages/resumes/MyResumes";
 import JobMatches from "../pages/jobs/JobMatches";
 import JobRecommendations from "../pages/recommendations/JobRecommendations";
+import JobDetails from "../pages/jobs/JobDetails";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -98,9 +99,16 @@ function AppRoutes() {
         path="/jobs"
         element={
           <ProtectedRoute>
-            <DashboardLayout>
-              <JobMatches />
-            </DashboardLayout>
+            <JobMatches />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/jobs/:jobId"
+        element={
+          <ProtectedRoute>
+            <JobDetails />
           </ProtectedRoute>
         }
       />
