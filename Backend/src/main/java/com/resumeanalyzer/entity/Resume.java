@@ -2,7 +2,7 @@ package com.resumeanalyzer.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 @Entity
 @Table(name = "resumes")
 public class Resume {
@@ -12,6 +12,7 @@ public class Resume {
     @Column(name = "resume_id")
     private Integer resumeId;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

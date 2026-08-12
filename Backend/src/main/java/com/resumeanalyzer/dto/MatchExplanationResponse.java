@@ -7,7 +7,10 @@ public record MatchExplanationResponse(
         Integer jobId,
         String jobTitle,
         BigDecimal matchScore,
+        String matchLevel,
         List<SkillMatchDetail> matchedSkills,
-        List<String> missingSkills
+        List<String> missingSkills,
+        List<String> missingRequiredSkills,
+        List<String> missingPreferredSkills
 ) {
 }

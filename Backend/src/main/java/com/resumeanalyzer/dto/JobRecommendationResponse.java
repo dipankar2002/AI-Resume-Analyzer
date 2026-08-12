@@ -9,6 +9,9 @@ public record JobRecommendationResponse(
         String location,
         String salary,
         String jobType,
-        BigDecimal matchScore
+        BigDecimal matchScore,
+        String matchLevel,
+        Integer matchedSkills,
+        Integer totalJobSkills
 ) {
 }

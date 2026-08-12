@@ -6,6 +6,7 @@ public record SkillMatchDetail(
         String skill,
         BigDecimal confidence,
         BigDecimal weight,
-        BigDecimal contribution
+        BigDecimal contribution,
+        String importance
 ) {
 }

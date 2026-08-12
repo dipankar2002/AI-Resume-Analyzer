@@ -21,7 +21,7 @@ public class Job {
     @Column(name = "location", length = 150)
     private String location;
 
-    @Column(name = "description")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "salary", length = 100)
@@ -33,8 +33,10 @@ public class Job {
     @Column(name = "posted_date")
     private LocalDateTime postedDate;
 
+    
+
     @ManyToOne
-    @JoinColumn(name = "created_by", nullable = false)
+    @JoinColumn(name = "created_by", nullable = true)
     private User createdBy;
 
     public Job() {
@@ -103,6 +105,10 @@ public class Job {
     public void setPostedDate(LocalDateTime postedDate) {
         this.postedDate = postedDate;
     }
+
+   
+
+  
 
     public User getCreatedBy() {
         return createdBy;
