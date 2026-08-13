@@ -10,15 +10,22 @@ import {
   Typography,
 } from "@mui/material";
 
+import WorkOutlineOutlinedIcon from "@mui/icons-material/WorkOutlineOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+
 import { useAuth } from "@clerk/react";
 import { useNavigate } from "react-router-dom";
 
-function JobMatches() {
-  const navigate = useNavigate();
-  const { getToken } = useAuth();
+const API_URL = "http://localhost:8080";
 
-  const [jobs, setJobs] = useState([]);
+function JobMatches() {
+  const { getToken } = useAuth();
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
+  const [activeResume, setActiveResume] = useState(null);
+  const [skills, setSkills] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -32,8 +39,12 @@ function JobMatches() {
 
       const token = await getToken();
 
+      // =====================================================
+      // 1. GET USER RESUMES
+      // =====================================================
+
       const resumesResponse = await fetch(
-        "http://localhost:8080/api/resumes/me",
+        `${API_URL}/api/resumes/me`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -47,15 +58,74 @@ function JobMatches() {
 
       const resumes = await resumesResponse.json();
 
-      if (!resumes || resumes.length === 0) {
-        setError("Please upload a resume first.");
+      console.log("RESUMES FROM BACKEND:", resumes);
+
+      // =====================================================
+      // 2. FIND ACTIVE RESUME
+      // =====================================================
+
+      const active = resumes.find(
+        (resume) => resume.active === true
+      );
+
+      console.log("ACTIVE RESUME:", active);
+
+      if (!active) {
+        setActiveResume(null);
+        setSkills([]);
+        setJobs([]);
         return;
       }
 
-      const resumeId = resumes[0].resumeId;
+      setActiveResume(active);
+
+      // =====================================================
+      // 3. GET ACTIVE RESUME SKILLS
+      // =====================================================
+
+      const skillsResponse = await fetch(
+        `${API_URL}/api/resumes/${active.resumeId}/skills`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!skillsResponse.ok) {
+        throw new Error(
+          "Unable to load skills from your active resume."
+        );
+      }
+
+      const resumeSkills = await skillsResponse.json();
+
+      console.log(
+        "ACTIVE RESUME SKILLS:",
+        resumeSkills
+      );
+
+      const skillNames = resumeSkills
+        .map((resumeSkill) => {
+          if (
+            resumeSkill.skill &&
+            resumeSkill.skill.skillName
+          ) {
+            return resumeSkill.skill.skillName;
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      setSkills(skillNames);
+
+      // =====================================================
+      // 4. GET PERSONALIZED JOBS
+      // =====================================================
 
       const jobsResponse = await fetch(
-        "http://localhost:8080/api/jobs",
+        `${API_URL}/api/jobs/live/personalized`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -64,103 +134,108 @@ function JobMatches() {
       );
 
       if (!jobsResponse.ok) {
-        throw new Error("Failed to load jobs.");
+        throw new Error(
+          "Unable to load personalized jobs."
+        );
       }
 
-      const jobData = await jobsResponse.json();
+      const jobsData = await jobsResponse.json();
 
-      const results = await Promise.all(
-        jobData.map(async (job) => {
-          try {
-            const explanationResponse = await fetch(
-              `http://localhost:8080/api/matching/${resumeId}/${job.jobId}/explanation`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
-
-            if (!explanationResponse.ok) {
-              return {
-                ...job,
-                matchScore: 0,
-                matchedSkills: [],
-                missingSkills: [],
-              };
-            }
-
-            const explanation =
-              await explanationResponse.json();
-
-            return {
-              ...job,
-              matchScore: Number(
-                explanation.matchScore || 0
-              ),
-              matchedSkills:
-                explanation.matchedSkills || [],
-              missingSkills:
-                explanation.missingSkills || [],
-            };
-          } catch {
-            return {
-              ...job,
-              matchScore: 0,
-              matchedSkills: [],
-              missingSkills: [],
-            };
-          }
-        })
+      console.log(
+        "PERSONALIZED JOBS FROM BACKEND:",
+        jobsData
       );
 
-      results.sort(
-        (a, b) => b.matchScore - a.matchScore
+      // Backend returns List<Job> directly.
+      // Example:
+      // [
+      //   {
+      //     jobId: 1,
+      //     title: "...",
+      //     company: "...",
+      //     location: "...",
+      //     redirectUrl: "..."
+      //   }
+      // ]
+
+      if (Array.isArray(jobsData)) {
+        setJobs(jobsData);
+      } else if (
+        jobsData &&
+        Array.isArray(jobsData.results)
+      ) {
+        // Fallback in case another endpoint returns
+        // an AdzunaJobResponse.
+        setJobs(jobsData.results);
+      } else {
+        setJobs([]);
+      }
+
+    } catch (error) {
+      console.error(
+        "Job matching error:",
+        error
       );
 
-      setJobs(results);
-    } catch (err) {
       setError(
-        err.message || "Failed to load job matches."
+        error.message ||
+          "Unable to load job matches."
       );
+
+      setJobs([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const getMatchColor = (score) => {
-    if (score >= 80) return "success.main";
-    if (score >= 60) return "warning.main";
-    return "error.main";
-  };
+  // =========================================================
+  // LOADING
+  // =========================================================
 
-  return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        backgroundColor: "background.default",
-        px: { xs: 2, sm: 3, md: 5 },
-        py: { xs: 3, md: 5 },
-      }}
-    >
+  if (loading) {
+    return (
       <Box
         sx={{
-          maxWidth: "1100px",
+          width: "100%",
+          maxWidth: 1100,
           mx: "auto",
+          px: {
+            xs: 2,
+            sm: 3,
+            md: 4,
+          },
+          py: 8,
+          display: "flex",
+          justifyContent: "center",
         }}
       >
-        <Button
-          onClick={() => navigate("/dashboard")}
-          sx={{
-            mb: 3,
-            color: "text.secondary",
-            fontWeight: 600,
-            textTransform: "none",
-          }}
-        >
-          ← Back to Dashboard
-        </Button>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
+  // =========================================================
+  // NO ACTIVE RESUME
+  // =========================================================
+
+  if (!activeResume) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          maxWidth: 1100,
+          mx: "auto",
+          px: {
+            xs: 2,
+            sm: 3,
+            md: 4,
+          },
+          py: {
+            xs: 3,
+            md: 4,
+          },
+        }}
+      >
         <Box sx={{ mb: 4 }}>
           <Typography
             variant="h4"
@@ -173,278 +248,393 @@ function JobMatches() {
           </Typography>
 
           <Typography color="text.secondary">
-            Discover jobs that match your skills and
-            experience.
+            Find jobs that match your resume skills.
           </Typography>
         </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
+        <Paper
+          elevation={0}
+          sx={{
+            p: {
+              xs: 3,
+              sm: 5,
+            },
+            textAlign: "center",
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <DescriptionOutlinedIcon
+            sx={{
+              fontSize: 55,
+              color: "primary.main",
+              mb: 2,
+            }}
+          />
 
-        {loading ? (
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 700,
+              mb: 1,
+            }}
+          >
+            Select an Active Resume
+          </Typography>
+
+          <Typography
+            color="text.secondary"
+            sx={{
+              mb: 3,
+              maxWidth: 550,
+              mx: "auto",
+            }}
+          >
+            Upload a resume or select an active resume
+            to get personalized job matches.
+          </Typography>
+
           <Box
             sx={{
               display: "flex",
               justifyContent: "center",
-              py: 8,
+              gap: 2,
+              flexWrap: "wrap",
             }}
           >
-            <CircularProgress />
-          </Box>
-        ) : jobs.length === 0 && !error ? (
-          <Paper
-            elevation={0}
-            sx={{
-              p: 5,
-              textAlign: "center",
-              borderRadius: 3,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              No jobs available
-            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => navigate("/resumes")}
+              sx={{
+                textTransform: "none",
+                borderRadius: 2,
+              }}
+            >
+              Select Resume
+            </Button>
 
-            <Typography color="text.secondary">
-              There are currently no jobs to match against
-              your resume.
-            </Typography>
-          </Paper>
-        ) : (
-          <>
+            <Button
+              variant="outlined"
+              onClick={() => navigate("/dashboard")}
+              sx={{
+                textTransform: "none",
+                borderRadius: 2,
+              }}
+            >
+              Upload Resume
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  }
+
+  // =========================================================
+  // MAIN PAGE
+  // =========================================================
+
+  return (
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: 1100,
+        mx: "auto",
+        px: {
+          xs: 2,
+          sm: 3,
+          md: 4,
+        },
+        py: {
+          xs: 3,
+          md: 4,
+        },
+      }}
+    >
+      {/* PAGE HEADER */}
+
+      <Box sx={{ mb: 4 }}>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 700,
+            mb: 1,
+          }}
+        >
+          Job Matches
+        </Typography>
+
+        <Typography
+          color="text.secondary"
+          sx={{
+            maxWidth: 650,
+            lineHeight: 1.6,
+          }}
+        >
+          Jobs matched with the skills from your
+          active resume.
+        </Typography>
+      </Box>
+
+      {/* ACTIVE RESUME */}
+
+      <Alert
+        severity="success"
+        sx={{
+          mb: 3,
+          borderRadius: 2,
+        }}
+      >
+        Using{" "}
+        <strong>{activeResume.fileName}</strong>{" "}
+        as your active resume.
+      </Alert>
+
+      {/* SKILLS */}
+
+      {skills.length > 0 && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography
+            sx={{
+              fontWeight: 700,
+              mb: 1.5,
+            }}
+          >
+            Skills used for matching
+          </Typography>
+
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 1,
+            }}
+          >
+            {skills.map((skill, index) => (
+              <Chip
+                key={`${skill}-${index}`}
+                label={skill}
+                size="small"
+                variant="outlined"
+              />
+            ))}
+          </Box>
+        </Paper>
+      )}
+
+      {/* ERROR */}
+
+      {error && (
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            borderRadius: 2,
+          }}
+        >
+          {error}
+        </Alert>
+      )}
+
+      {/* JOBS */}
+
+      {jobs.length === 0 ? (
+        <Paper
+          elevation={0}
+          sx={{
+            p: {
+              xs: 3,
+              sm: 5,
+            },
+            textAlign: "center",
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <WorkOutlineOutlinedIcon
+            sx={{
+              fontSize: 55,
+              color: "text.secondary",
+              mb: 2,
+            }}
+          />
+
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+              mb: 1,
+            }}
+          >
+            No matching jobs found
+          </Typography>
+
+          <Typography
+            color="text.secondary"
+            sx={{
+              maxWidth: 500,
+              mx: "auto",
+            }}
+          >
+            We couldn't find jobs matching the skills
+            from your active resume right now.
+            Please try again later.
+          </Typography>
+        </Paper>
+      ) : (
+        // ===================================================
+        // JOB LIST
+        // ===================================================
+
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          {jobs.map((job, index) => (
             <Paper
+              key={
+                job.jobId ||
+                job.id ||
+                index
+              }
               elevation={0}
               sx={{
-                p: { xs: 2.5, md: 3 },
-                mb: 4,
+                p: {
+                  xs: 2,
+                  sm: 3,
+                },
                 borderRadius: 3,
                 border: "1px solid",
                 borderColor: "divider",
+                transition: "all 0.2s ease",
+
+                "&:hover": {
+                  borderColor: "primary.main",
+                  boxShadow:
+                    "0 6px 20px rgba(15, 23, 42, 0.06)",
+                },
               }}
             >
+              {/* TITLE */}
+
               <Typography
                 variant="h6"
                 sx={{
                   fontWeight: 700,
+                  mb: 1,
+                }}
+              >
+                {job.title || "Untitled Job"}
+              </Typography>
+
+              {/* COMPANY */}
+
+              <Typography
+                sx={{
+                  fontWeight: 600,
                   mb: 0.5,
                 }}
               >
-                {jobs.length} potential matches
+                {job.company || "Unknown Company"}
               </Typography>
+
+              {/* LOCATION */}
 
               <Typography
                 variant="body2"
                 color="text.secondary"
+                sx={{
+                  mb: 1.5,
+                }}
               >
-                Based on your resume skills and experience.
+                📍 {job.location || "India"}
               </Typography>
-            </Paper>
 
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 3,
-              }}
-            >
-              {jobs.map((job) => (
-                <Paper
-                  key={job.jobId}
-                  elevation={0}
+              {/* JOB TYPE */}
+
+              {job.jobType && (
+                <Chip
+                  label={job.jobType}
+                  size="small"
+                  variant="outlined"
                   sx={{
-                    p: { xs: 2.5, md: 3 },
-                    borderRadius: 3,
-                    border: "1px solid",
-                    borderColor: "divider",
+                    mr: 1,
+                    mb: 1.5,
+                  }}
+                />
+              )}
+
+              {/* SALARY */}
+
+              {job.salary && (
+                <Chip
+                  label={`Salary: ${job.salary}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    mr: 1,
+                    mb: 1.5,
+                  }}
+                />
+              )}
+
+              {/* DESCRIPTION */}
+
+              {job.description && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    mb: 2,
+                    lineHeight: 1.6,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
                   }}
                 >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 3,
-                      flexWrap: "wrap",
-                      mb: 3,
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontWeight: 700,
-                          mb: 0.5,
-                        }}
-                      >
-                        {job.title}
-                      </Typography>
+                  {job.description}
+                </Typography>
+              )}
 
-                      <Typography
-                        sx={{
-                          fontWeight: 600,
-                          mb: 0.5,
-                        }}
-                      >
-                        {job.company}
-                      </Typography>
+              {/* APPLY */}
 
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                      >
-                        📍{" "}
-                        {job.location ||
-                          "Location not specified"}
-                      </Typography>
-                    </Box>
-
-                    <Box
-                      sx={{
-                        minWidth: 90,
-                        textAlign: "center",
-                      }}
-                    >
-                      <Typography
-                        variant="h5"
-                        sx={{
-                          fontWeight: 700,
-                          color: getMatchColor(
-                            job.matchScore
-                          ),
-                        }}
-                      >
-                        {job.matchScore}%
-                      </Typography>
-
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                      >
-                        Match
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      p: 2,
-                      mb: 3,
-                      borderRadius: 2,
-                      backgroundColor:
-                        "rgba(37, 99, 235, 0.04)",
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                    >
-                      Your resume matches this job based
-                      on the skills required for the role.
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ mb: 2.5 }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 700,
-                        mb: 1,
-                      }}
-                    >
-                      Matching Skills
-                    </Typography>
-
-                    {job.matchedSkills.length === 0 ? (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                      >
-                        No matching skills found.
-                      </Typography>
-                    ) : (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          gap: 1,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        {job.matchedSkills.map(
-                          (skill, index) => (
-                            <Chip
-                              key={`${skill.skill}-${index}`}
-                              label={skill.skill}
-                              size="small"
-                              color="success"
-                              variant="outlined"
-                            />
-                          )
-                        )}
-                      </Box>
-                    )}
-                  </Box>
-
-                  {job.missingSkills.length > 0 && (
-                    <Box sx={{ mb: 3 }}>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 700,
-                          mb: 1,
-                        }}
-                      >
-                        Skills to Improve
-                      </Typography>
-
-                      <Box
-                        sx={{
-                          display: "flex",
-                          gap: 1,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        {job.missingSkills.map(
-                          (skill) => (
-                            <Chip
-                              key={skill}
-                              label={skill}
-                              size="small"
-                              variant="outlined"
-                            />
-                          )
-                        )}
-                      </Box>
-                    </Box>
-                  )}
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "flex-end",
-                    }}
-                  >
-                    <Button
-                      variant="contained"
-                      onClick={() =>
-                        navigate(`/jobs/${job.jobId}`)
-                      }
-                      sx={{
-                        textTransform: "none",
-                        fontWeight: 600,
-                      }}
-                    >
-                      View Job →
-                    </Button>
-                  </Box>
-                </Paper>
-              ))}
-            </Box>
-          </>
-        )}
-      </Box>
+              <Button
+                variant="contained"
+                disabled={!job.redirectUrl}
+                onClick={() => {
+                  if (job.redirectUrl) {
+                    window.open(
+                      job.redirectUrl,
+                      "_blank",
+                      "noopener,noreferrer"
+                    );
+                  }
+                }}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: 2,
+                }}
+              >
+                Apply Now →
+              </Button>
+            </Paper>
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }

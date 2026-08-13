@@ -5,7 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface JobSkillRepository extends JpaRepository<JobSkill, Integer> {
+public interface JobSkillRepository
+        extends JpaRepository<JobSkill, Integer> {
 
     List<JobSkill> findByJobJobId(Integer jobId);
 }

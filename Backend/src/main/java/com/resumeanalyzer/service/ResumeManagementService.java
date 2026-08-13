@@ -24,56 +24,102 @@ public class ResumeManagementService {
         this.userRepository = userRepository;
     }
 
+    // =========================================================
+    // GET SINGLE RESUME
+    // =========================================================
+
     public Resume getResume(Integer resumeId) {
 
         return resumeRepository.findById(resumeId)
                 .orElseThrow(() ->
-                        new RuntimeException("Resume not found"));
+                        new RuntimeException(
+                                "Resume not found"
+                        )
+                );
     }
+
+    // =========================================================
+    // GET USER RESUMES
+    // =========================================================
 
     public List<ResumeListResponse> getUserResumes(
             String clerkUserId) {
 
-        User user = userRepository.findByClerkUserId(clerkUserId)
+        User user = userRepository
+                .findByClerkUserId(clerkUserId)
                 .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                        new RuntimeException(
+                                "User not found"
+                        )
+                );
 
-        return resumeRepository.findByUser(user)
+        final Integer activeResumeId =
+                user.getActiveResume() != null
+                        ? user.getActiveResume().getResumeId()
+                        : null;
+
+        return resumeRepository
+                .findByUser(user)
                 .stream()
-                .map(resume -> new ResumeListResponse(
-                        resume.getResumeId(),
-                        resume.getFileName(),
-                        resume.getUploadedAt()
-                ))
+                .map(resume ->
+                        new ResumeListResponse(
+                                resume.getResumeId(),
+                                resume.getFileName(),
+                                resume.getUploadedAt(),
+                                resume.getResumeId()
+                                        .equals(activeResumeId)
+                        )
+                )
                 .toList();
     }
 
+    // =========================================================
+    // DELETE RESUME
+    // =========================================================
+
     public void deleteResume(Integer resumeId) {
 
-        Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() ->
-                        new RuntimeException("Resume not found"));
+        Resume resume =
+                resumeRepository.findById(resumeId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Resume not found"
+                                )
+                        );
 
         resumeRepository.delete(resume);
     }
+
+    // =========================================================
+    // SET ACTIVE RESUME
+    // =========================================================
 
     public void setActiveResume(
             String clerkUserId,
             Integer resumeId) {
 
-        User user = userRepository.findByClerkUserId(clerkUserId)
+        User user = userRepository
+                .findByClerkUserId(clerkUserId)
                 .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                        new RuntimeException(
+                                "User not found"
+                        )
+                );
 
-        Resume resume = resumeRepository.findById(resumeId)
+        Resume resume = resumeRepository
+                .findById(resumeId)
                 .orElseThrow(() ->
-                        new RuntimeException("Resume not found"));
+                        new RuntimeException(
+                                "Resume not found"
+                        )
+                );
 
-        if (!resume.getUser().getUserId()
+        if (!resume.getUser()
+                .getUserId()
                 .equals(user.getUserId())) {
 
             throw new RuntimeException(
-                    "Resume does not belong to this user"
+                    "Resume does not belong to user"
             );
         }
 

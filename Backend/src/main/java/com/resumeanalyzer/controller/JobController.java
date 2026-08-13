@@ -1,8 +1,10 @@
 package com.resumeanalyzer.controller;
 
 import com.resumeanalyzer.entity.Job;
-import com.resumeanalyzer.repo.JobRepository;
+import com.resumeanalyzer.dto.AdzunaJobResponse;
+import com.resumeanalyzer.service.AdzunaService;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -11,21 +13,48 @@ import java.util.List;
 @RequestMapping("/api/jobs")
 public class JobController {
 
-    private final JobRepository jobRepository;
+    private final AdzunaService adzunaService;
 
-    public JobController(JobRepository jobRepository) {
-        this.jobRepository = jobRepository;
+    public JobController(
+            AdzunaService adzunaService) {
+
+        this.adzunaService = adzunaService;
     }
 
-    @GetMapping
-    public List<Job> getAllJobs() {
-        return jobRepository.findAll();
+    // =========================================================
+    // ALL LIVE JOBS
+    // =========================================================
+
+    @GetMapping("/live")
+    public AdzunaJobResponse getLiveJobs(
+            @RequestParam String keyword,
+            @RequestParam(
+                    defaultValue = "India"
+            ) String location
+    ) {
+
+        return adzunaService.searchJobs(
+                keyword,
+                location,
+                1,
+                10
+        );
     }
 
-    @GetMapping("/{jobId}")
-    public Job getJob(@PathVariable Integer jobId) {
-        return jobRepository.findById(jobId)
-                .orElseThrow(() ->
-                        new RuntimeException("Job not found"));
+    // =========================================================
+    // PERSONALIZED JOBS
+    // =========================================================
+
+    @GetMapping("/live/personalized")
+    public List<Job> getPersonalizedJobs(
+            Authentication authentication
+    ) {
+
+        String clerkUserId =
+                authentication.getName();
+
+        return adzunaService.getPersonalizedJobs(
+                clerkUserId
+        );
     }
 }

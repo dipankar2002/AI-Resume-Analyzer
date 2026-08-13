@@ -35,16 +35,50 @@ public class ResumeAnalysisService {
                 .orElseThrow(() ->
                         new RuntimeException("Resume not found"));
 
-        if (!resume.getUser().getUserId().equals(userId)) {
+        if (resume.getUser() == null
+                || !resume.getUser()
+                        .getUserId()
+                        .equals(userId)) {
+
             throw new RuntimeException(
                     "Resume does not belong to this user"
             );
         }
 
+        if (resume.getExtractedText() == null
+                || resume.getExtractedText().isBlank()) {
+
+            throw new RuntimeException(
+                    "Resume text could not be extracted"
+            );
+        }
+
+        /*
+         * -----------------------------------------------------
+         * 1. AI ATS ANALYSIS
+         * -----------------------------------------------------
+         */
+
         ResumeAnalysisResponse aiResult =
                 geminiService.analyzeResumeContent(
                         resume.getExtractedText()
                 );
+
+        /*
+         * -----------------------------------------------------
+         * 2. EXTRACT AND SAVE RESUME SKILLS
+         * -----------------------------------------------------
+         *
+         * This is required for personalized job matching.
+         */
+
+        geminiService.analyzeResume(resumeId);
+
+        /*
+         * -----------------------------------------------------
+         * 3. SAVE ATS ANALYSIS
+         * -----------------------------------------------------
+         */
 
         ResumeAnalysis analysis =
                 resumeAnalysisRepository
@@ -53,30 +87,52 @@ public class ResumeAnalysisService {
 
         analysis.setResume(resume);
 
-        analysis.setAtsScore(aiResult.atsScore());
+        analysis.setAtsScore(
+                aiResult.atsScore()
+        );
 
         analysis.setProfessionalSummary(
                 aiResult.professionalSummary()
         );
 
         analysis.setStrengths(
-                String.join("\n", aiResult.strengths())
+                aiResult.strengths() == null
+                        ? ""
+                        : String.join(
+                                "\n",
+                                aiResult.strengths()
+                        )
         );
 
         analysis.setWeaknesses(
-                String.join("\n", aiResult.weaknesses())
+                aiResult.weaknesses() == null
+                        ? ""
+                        : String.join(
+                                "\n",
+                                aiResult.weaknesses()
+                        )
         );
 
         analysis.setSuggestions(
-                String.join("\n", aiResult.suggestions())
+                aiResult.suggestions() == null
+                        ? ""
+                        : String.join(
+                                "\n",
+                                aiResult.suggestions()
+                        )
         );
 
-        analysis.setAnalyzedAt(LocalDateTime.now());
+        analysis.setAnalyzedAt(
+                LocalDateTime.now()
+        );
 
-        return resumeAnalysisRepository.save(analysis);
+        return resumeAnalysisRepository.save(
+                analysis
+        );
     }
 
-    public List<ResumeAnalysis> getUserAnalyses(Integer userId) {
+    public List<ResumeAnalysis> getUserAnalyses(
+            Integer userId) {
 
         return resumeAnalysisRepository
                 .findByResumeUserUserId(userId);

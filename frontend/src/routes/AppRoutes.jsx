@@ -91,7 +91,13 @@ function AppRoutes() {
       {/* Resume Analysis */}
       <Route
         path="/analysis/:resumeId"
-        element={<ResumeAnalysis />}
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <ResumeAnalysis />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
       />
 
       {/* Job Matches */}
@@ -99,16 +105,21 @@ function AppRoutes() {
         path="/jobs"
         element={
           <ProtectedRoute>
-            <JobMatches />
+            <DashboardLayout>
+              <JobMatches />
+            </DashboardLayout>
           </ProtectedRoute>
         }
       />
 
+      {/* Job Details */}
       <Route
         path="/jobs/:jobId"
         element={
           <ProtectedRoute>
-            <JobDetails />
+            <DashboardLayout>
+              <JobDetails />
+            </DashboardLayout>
           </ProtectedRoute>
         }
       />
