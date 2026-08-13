@@ -500,4 +500,4 @@ Developed as a Computer Science project by the project team.
 
 This project is currently maintained as an academic/project repository.
 
-An explicit open-source license can be added if the project is later released under an open-source license.
+An explicit open-source license can be added if the project is later released under an open-source license..
