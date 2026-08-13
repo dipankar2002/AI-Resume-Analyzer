@@ -16,6 +16,7 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/react";
@@ -30,6 +31,10 @@ function MyResumes() {
   const [settingActive, setSettingActive] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // =========================================================
+  // LOAD RESUMES
+  // =========================================================
 
   const loadResumes = async () => {
     try {
@@ -53,9 +58,22 @@ function MyResumes() {
 
       const data = await response.json();
 
-      setResumes(data);
+      const resumeList = Array.isArray(data) ? data : [];
+
+      setResumes(resumeList);
+
+      // Get active resume directly from backend response
+      const activeResume = resumeList.find(
+        (resume) => resume.active === true
+      );
+
+      setActiveResumeId(
+        activeResume ? activeResume.resumeId : null
+      );
     } catch (err) {
-      setError(err.message || "Failed to load resumes.");
+      setError(
+        err.message || "Failed to load resumes."
+      );
     } finally {
       setLoading(false);
     }
@@ -64,6 +82,10 @@ function MyResumes() {
   useEffect(() => {
     loadResumes();
   }, []);
+
+  // =========================================================
+  // SET ACTIVE RESUME
+  // =========================================================
 
   const setActiveResume = async (resumeId) => {
     try {
@@ -84,20 +106,39 @@ function MyResumes() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to set active resume.");
+        throw new Error(
+          "Failed to set active resume."
+        );
       }
 
+      // Update local active resume
       setActiveResumeId(resumeId);
 
-      setSuccess("Active resume updated successfully.");
+      // Update resume list so only selected resume
+      // is marked active
+      setResumes((current) =>
+        current.map((resume) => ({
+          ...resume,
+          active: resume.resumeId === resumeId,
+        }))
+      );
+
+      setSuccess(
+        "Active resume updated successfully."
+      );
     } catch (err) {
       setError(
-        err.message || "Failed to set active resume."
+        err.message ||
+          "Failed to set active resume."
       );
     } finally {
       setSettingActive(null);
     }
   };
+
+  // =========================================================
+  // DELETE RESUME
+  // =========================================================
 
   const deleteResume = async (resumeId) => {
     const confirmed = window.confirm(
@@ -107,6 +148,9 @@ function MyResumes() {
     if (!confirmed) return;
 
     try {
+      setError("");
+      setSuccess("");
+
       const token = await getToken();
 
       const response = await fetch(
@@ -120,24 +164,39 @@ function MyResumes() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to delete resume.");
+        throw new Error(
+          "Failed to delete resume."
+        );
       }
+
+      const deletedWasActive =
+        activeResumeId === resumeId;
 
       setResumes((current) =>
         current.filter(
-          (resume) => resume.resumeId !== resumeId
+          (resume) =>
+            resume.resumeId !== resumeId
         )
       );
 
-      if (activeResumeId === resumeId) {
+      if (deletedWasActive) {
         setActiveResumeId(null);
       }
+
+      setSuccess(
+        "Resume deleted successfully."
+      );
     } catch (err) {
       setError(
-        err.message || "Failed to delete resume."
+        err.message ||
+          "Failed to delete resume."
       );
     }
   };
+
+  // =========================================================
+  // UI
+  // =========================================================
 
   return (
     <Box
@@ -148,6 +207,8 @@ function MyResumes() {
         py: { xs: 3, md: 5 },
       }}
     >
+      {/* BACK BUTTON */}
+
       <Box
         sx={{
           maxWidth: "1000px",
@@ -166,6 +227,8 @@ function MyResumes() {
           Back to Dashboard
         </Button>
       </Box>
+
+      {/* PAGE HEADER */}
 
       <Box
         sx={{
@@ -197,31 +260,57 @@ function MyResumes() {
           </Typography>
 
           <Typography color="text.secondary">
-            Manage your uploaded resumes and view their AI
-            analysis.
+            Manage your uploaded resumes and view
+            their AI analysis.
           </Typography>
         </Box>
 
         <Button
           variant="contained"
-          startIcon={<CloudUploadOutlinedIcon />}
-          onClick={() => navigate("/dashboard/upload")}
+          startIcon={
+            <CloudUploadOutlinedIcon />
+          }
+          onClick={() =>
+            navigate("/dashboard/upload")
+          }
         >
           Upload Resume
         </Button>
       </Box>
 
+      {/* ERROR */}
+
       {error && (
-        <Box sx={{ maxWidth: "1000px", mx: "auto", mb: 2 }}>
-          <Alert severity="error">{error}</Alert>
+        <Box
+          sx={{
+            maxWidth: "1000px",
+            mx: "auto",
+            mb: 2,
+          }}
+        >
+          <Alert severity="error">
+            {error}
+          </Alert>
         </Box>
       )}
 
+      {/* SUCCESS */}
+
       {success && (
-        <Box sx={{ maxWidth: "1000px", mx: "auto", mb: 2 }}>
-          <Alert severity="success">{success}</Alert>
+        <Box
+          sx={{
+            maxWidth: "1000px",
+            mx: "auto",
+            mb: 2,
+          }}
+        >
+          <Alert severity="success">
+            {success}
+          </Alert>
         </Box>
       )}
+
+      {/* RESUMES */}
 
       <Box
         sx={{
@@ -264,13 +353,18 @@ function MyResumes() {
               color="text.secondary"
               sx={{ mb: 3 }}
             >
-              Upload your first resume to get started.
+              Upload your first resume to get
+              started.
             </Typography>
 
             <Button
               variant="contained"
-              startIcon={<CloudUploadOutlinedIcon />}
-              onClick={() => navigate("/dashboard/upload")}
+              startIcon={
+                <CloudUploadOutlinedIcon />
+              }
+              onClick={() =>
+                navigate("/dashboard/upload")
+              }
             >
               Upload Resume
             </Button>
@@ -285,29 +379,47 @@ function MyResumes() {
           >
             {resumes.map((resume) => {
               const isActive =
-                activeResumeId === resume.resumeId;
+                activeResumeId ===
+                resume.resumeId;
 
               return (
                 <Paper
                   key={resume.resumeId}
                   elevation={0}
                   sx={{
-                    p: { xs: 2, sm: 3 },
+                    p: {
+                      xs: 2,
+                      sm: 3,
+                    },
                     borderRadius: 3,
-                    border: "1px solid",
+
+                    // Highlight active resume
+                    border: "2px solid",
                     borderColor: isActive
                       ? "success.main"
                       : "divider",
+
                     backgroundColor: isActive
-                      ? "rgba(46, 125, 50, 0.03)"
+                      ? "rgba(46, 125, 50, 0.04)"
                       : "background.paper",
+
+                    boxShadow: isActive
+                      ? "0 4px 16px rgba(46, 125, 50, 0.12)"
+                      : "none",
+
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
+                    justifyContent:
+                      "space-between",
                     gap: 2,
                     flexWrap: "wrap",
+
+                    transition:
+                      "all 0.2s ease",
                   }}
                 >
+                  {/* RESUME INFO */}
+
                   <Box
                     sx={{
                       display: "flex",
@@ -323,7 +435,8 @@ function MyResumes() {
                         borderRadius: 2,
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
+                        justifyContent:
+                          "center",
                         backgroundColor:
                           "rgba(220, 38, 38, 0.08)",
                         color: "#DC2626",
@@ -334,16 +447,44 @@ function MyResumes() {
                     </Box>
 
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography
+                      <Box
                         sx={{
-                          fontWeight: 600,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          display: "flex",
+                          alignItems:
+                            "center",
+                          gap: 1,
+                          flexWrap: "wrap",
                         }}
                       >
-                        {resume.fileName}
-                      </Typography>
+                        <Typography
+                          sx={{
+                            fontWeight: 600,
+                            overflow: "hidden",
+                            textOverflow:
+                              "ellipsis",
+                            whiteSpace:
+                              "nowrap",
+                          }}
+                        >
+                          {resume.fileName}
+                        </Typography>
+
+                        {/* ACTIVE BADGE */}
+
+                        {isActive && (
+                          <Chip
+                            icon={
+                              <CheckCircleOutlinedIcon />
+                            }
+                            label="ACTIVE"
+                            size="small"
+                            color="success"
+                            sx={{
+                              fontWeight: 700,
+                            }}
+                          />
+                        )}
+                      </Box>
 
                       <Typography
                         variant="body2"
@@ -356,8 +497,28 @@ function MyResumes() {
                             ).toLocaleDateString()
                           : "Recently uploaded"}
                       </Typography>
+
+                      {/* ACTIVE DESCRIPTION */}
+
+                      {isActive && (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            mt: 0.5,
+                            color:
+                              "success.dark",
+                            fontWeight: 500,
+                          }}
+                        >
+                          Currently used for
+                          job matching and
+                          recommendations
+                        </Typography>
+                      )}
                     </Box>
                   </Box>
+
+                  {/* ACTIONS */}
 
                   <Box
                     sx={{
@@ -369,9 +530,15 @@ function MyResumes() {
                   >
                     {isActive ? (
                       <Chip
+                        icon={
+                          <CheckCircleOutlinedIcon />
+                        }
                         label="Active Resume"
-                        size="small"
                         color="success"
+                        variant="outlined"
+                        sx={{
+                          fontWeight: 600,
+                        }}
                       />
                     ) : (
                       <Button
@@ -389,7 +556,9 @@ function MyResumes() {
                       >
                         {settingActive ===
                         resume.resumeId ? (
-                          <CircularProgress size={18} />
+                          <CircularProgress
+                            size={18}
+                          />
                         ) : (
                           "Set Active"
                         )}
@@ -413,7 +582,9 @@ function MyResumes() {
                     <IconButton
                       aria-label="Remove resume"
                       onClick={() =>
-                        deleteResume(resume.resumeId)
+                        deleteResume(
+                          resume.resumeId
+                        )
                       }
                     >
                       <CloseIcon />

@@ -1,6 +1,7 @@
 package com.resumeanalyzer.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record JobRecommendationResponse(
         Integer jobId,
@@ -9,9 +10,11 @@ public record JobRecommendationResponse(
         String location,
         String salary,
         String jobType,
+        String redirectUrl,
         BigDecimal matchScore,
         String matchLevel,
         Integer matchedSkills,
-        Integer totalJobSkills
+        Integer totalResumeSkills,
+        List<String> matchedSkillNames
 ) {
 }

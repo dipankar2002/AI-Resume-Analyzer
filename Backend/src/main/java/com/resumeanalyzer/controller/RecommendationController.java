@@ -20,7 +20,8 @@ public class RecommendationController {
 
     public RecommendationController(
             RecommendationService recommendationService,
-            UserService userService) {
+            UserService userService
+    ) {
 
         this.recommendationService =
                 recommendationService;
@@ -28,29 +29,54 @@ public class RecommendationController {
         this.userService =
                 userService;
     }
-    @GetMapping("/{userId}")
-    public List<JobRecommendationResponse> getRecommendationsByUser(
-            @PathVariable Integer userId) {
 
-        return recommendationService.getRecommendations(userId);
-    }
+    // =========================================================
+    // PERSONALIZED RECOMMENDATIONS
+    // =========================================================
 
     @GetMapping("/me")
     public List<JobRecommendationResponse>
     getRecommendations(
-            @AuthenticationPrincipal Jwt jwt) {
-
-        String clerkUserId =
-                jwt.getSubject();
+            @AuthenticationPrincipal Jwt jwt
+    ) {
 
         User user =
                 userService.getOrCreateUser(
-                        clerkUserId
+                        jwt.getSubject()
                 );
 
         return recommendationService
                 .getRecommendations(
                         user.getUserId()
+                );
+    }
+
+    // =========================================================
+    // FILTERED SEARCH
+    // =========================================================
+
+    @GetMapping("/me/search")
+    public List<JobRecommendationResponse>
+    searchRecommendations(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "India")
+            String location,
+            @RequestParam(defaultValue = "all")
+            String jobType
+    ) {
+
+        User user =
+                userService.getOrCreateUser(
+                        jwt.getSubject()
+                );
+
+        return recommendationService
+                .searchRecommendations(
+                        user.getUserId(),
+                        keyword,
+                        location,
+                        jobType
                 );
     }
 }
