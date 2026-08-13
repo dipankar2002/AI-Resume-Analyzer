@@ -60,8 +60,6 @@ The application supports:
 - Clerk React SDK
 - Axios / Fetch API
 
-The frontend configuration and dependencies are defined in `frontend/package.json`. fileciteturn78file0L2-L2
-
 ### Backend
 
 - Java 21
@@ -75,8 +73,6 @@ The frontend configuration and dependencies are defined in `frontend/package.jso
 - MySQL Connector/J
 - Google GenAI SDK
 - Apache PDFBox
-
-The backend is configured for Java 21 and includes the Spring Security, JPA, MySQL, Google GenAI, and PDFBox dependencies. fileciteturn77file0L2-L2
 
 ### External Services
 
@@ -148,7 +144,7 @@ Uploaded resumes can be processed and analyzed to extract useful information suc
 - Resume-related insights
 - Structured resume information used by other application features
 
-PDF processing is supported through Apache PDFBox, while the backend includes the Google GenAI SDK for AI functionality. fileciteturn77file0L2-L2
+PDF processing is supported through Apache PDFBox, while the backend includes the Google GenAI SDK for AI functionality.
 
 ### 4. Live Job Matches
 
@@ -239,14 +235,12 @@ The application requires environment/configuration values for services such as:
 - Adzuna application ID
 - Adzuna application key
 
-For example, the Adzuna configuration reads the following environment variables:
+For example, the Adzuna configuration reads:
 
 ```text
 ADZUNA_APP_ID
 ADZUNA_APP_KEY
 ```
-
-The backend configuration maps these values through `AdzunaConfig`. 
 
 Use your own local environment/configuration values when running the project.
 
@@ -320,8 +314,6 @@ Vite will display the local frontend URL in the terminal.
 
 ## 🧪 Build Verification
 
-The project can be checked with:
-
 ### Frontend
 
 ```bash
@@ -340,7 +332,7 @@ The current `main` branch was verified during development with successful fronte
 
 ## 🔌 Important API Areas
 
-The backend exposes REST APIs for major application features, including endpoints for:
+The backend exposes REST APIs for major application features, including:
 
 ```text
 /api/resumes
