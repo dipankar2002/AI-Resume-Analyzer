@@ -1,14 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { ThemeProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-
 import { ClerkProvider } from "@clerk/react";
 
 import "./index.css";
 import App from "./App.jsx";
-import theme from "./theme.js";
+import { AppThemeProvider } from "./contexts/ThemeSettingsContext";
 
 const clerkPublishableKey =
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -26,10 +23,9 @@ createRoot(document.getElementById("root")).render(
       signInUrl="/login"
       signUpUrl="/register"
     >
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+      <AppThemeProvider>
         <App />
-      </ThemeProvider>
+      </AppThemeProvider>
     </ClerkProvider>
   </StrictMode>
 );

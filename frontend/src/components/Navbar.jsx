@@ -5,7 +5,21 @@ import {
   Button,
   Box,
   Divider,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
+import {
+  alpha,
+} from "@mui/material/styles";
+import {
+  Palette,
+  LightMode,
+  DarkMode,
+} from "@mui/icons-material";
+import { useState } from "react";
 
 import { Link, useLocation } from "react-router-dom";
 
@@ -13,9 +27,18 @@ import {
   Show,
   UserButton,
 } from "@clerk/react";
+import { useThemeSettings } from "../contexts/ThemeSettingsContext";
 
 function Navbar() {
   const location = useLocation();
+  const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
+  const {
+    mode,
+    colorPreset,
+    colorPresets,
+    setMode,
+    setColorPreset,
+  } = useThemeSettings();
 
   const navItems = [
     {
@@ -36,14 +59,17 @@ function Navbar() {
     },
   ];
 
+  const isThemeMenuOpen = Boolean(themeMenuAnchor);
+
   return (
     <AppBar
       position="sticky"
       elevation={0}
       sx={{
-        backgroundColor: "#FFFFFF",
-        color: "#0F172A",
-        borderBottom: "1px solid #E2E8F0",
+        backgroundColor: "background.paper",
+        color: "text.primary",
+        borderBottom: (theme) =>
+          `1px solid ${theme.palette.divider}`,
       }}
     >
       <Toolbar
@@ -104,7 +130,8 @@ function Navbar() {
                     position: "relative",
 
                     "&:hover": {
-                      backgroundColor: "rgba(37, 99, 235, 0.06)",
+                      backgroundColor: (theme) =>
+                        alpha(theme.palette.primary.main, 0.08),
                       color: "primary.main",
                     },
 
@@ -137,6 +164,91 @@ function Navbar() {
             gap: 1,
           }}
         >
+          <IconButton
+            aria-label="theme settings"
+            onClick={(event) => {
+              setThemeMenuAnchor(event.currentTarget);
+            }}
+            sx={{
+              border: (theme) =>
+                `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Palette fontSize="small" />
+          </IconButton>
+
+          <Menu
+            anchorEl={themeMenuAnchor}
+            open={isThemeMenuOpen}
+            onClose={() => {
+              setThemeMenuAnchor(null);
+            }}
+            anchorOrigin={{
+              vertical: "bottom",
+              horizontal: "right",
+            }}
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "right",
+            }}
+          >
+            <MenuItem
+              selected={mode === "light"}
+              onClick={() => {
+                setMode("light");
+                setThemeMenuAnchor(null);
+              }}
+            >
+              <ListItemIcon>
+                <LightMode fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Light mode</ListItemText>
+            </MenuItem>
+
+            <MenuItem
+              selected={mode === "dark"}
+              onClick={() => {
+                setMode("dark");
+                setThemeMenuAnchor(null);
+              }}
+            >
+              <ListItemIcon>
+                <DarkMode fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Dark mode</ListItemText>
+            </MenuItem>
+
+            <Divider />
+
+            {Object.keys(colorPresets).map((presetKey) => (
+              <MenuItem
+                key={presetKey}
+                selected={colorPreset === presetKey}
+                onClick={() => {
+                  setColorPreset(presetKey);
+                  setThemeMenuAnchor(null);
+                }}
+              >
+                <ListItemIcon>
+                  <Box
+                    sx={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      backgroundColor:
+                        colorPresets[presetKey].primary,
+                    }}
+                  />
+                </ListItemIcon>
+                <ListItemText
+                  sx={{ textTransform: "capitalize" }}
+                >
+                  {presetKey}
+                </ListItemText>
+              </MenuItem>
+            ))}
+          </Menu>
+
           {/* Logged out */}
           <Show when="signed-out">
             <Button
