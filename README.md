@@ -1,6 +1,6 @@
 # AI Resume Analyzer
 
-An AI-powered resume analysis and job discovery platform that helps users understand their resumes, manage multiple resumes, discover relevant jobs, and receive personalized job recommendations based on the skills extracted from their active resume.
+An AI-powered resume analysis and job discovery platform that helps users understand their resumes, manage multiple resumes, discover relevant jobs, and receive personalized job recommendations based on the skills extracted from their active resume.It analyzes a candidate’s resume using Google Gemini, extracts relevant skills with confidence scores, and uses those skills to match the candidate with live job opportunities and provide personalized job recommendations.
 
 ---
 
